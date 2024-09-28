@@ -1,4 +1,5 @@
 * NEXT
+- Hats are now rendered for characters not part of symbols.
 - Added function ~hatty-locate-token-region~ for getting the region of
   the token that the hat is placed over.
 

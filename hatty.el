@@ -261,31 +261,36 @@ TOKEN is a cons cell of the bounds of the token."
 (defun hatty--get-tokens ()
   "Return bounds of tokens in the visible buffer.
 Order tokens by importance."
-  (let ((previous-point (point)))
+  (let* ((previous-point (point))
+         token
+         (tokens '())
+         (next-token
+          (lambda ()
+            (skip-chars-forward "[:space:]\n")
+            (let ((start (point)))
+              (if (zerop (skip-syntax-forward "w_'"))
+                  (skip-syntax-forward "^w_' " (1+ (point))))
+              (setq token
+                    (if (= start (point))
+                        nil
+                      (cons start (point))))))))
     (save-excursion
       (goto-char (window-start))
-      (forward-thing 'symbol)
-      (thread-last
-        (cl-loop
-         ;; If we are at the end of the window, collect token before
-         ;; exiting the loop.  If we would use <= in the while loop
-         ;; instead, we would risk an infinite loop if we ended up at
-         ;; the end of the buffer.
-         if (and (equal (point) (window-end))
-                 (bounds-of-thing-at-point 'symbol))
-         collect (bounds-of-thing-at-point 'symbol)
+      (while (and (<= (point) (window-end))
+                  (funcall next-token))
+        (push token tokens))
 
-         while (< (point) (window-end))
-         collect (bounds-of-thing-at-point 'symbol)
-         do (forward-thing 'symbol))
+      ;; TODO: Move to hat assignment algorithm?
+      (setq tokens
+            (seq-filter
+             (lambda (token) (not (or (invisible-p (car token))
+                                      (invisible-p (1- (cdr token))))))
+             tokens))
 
-        ;; Move to hat assignment algorithm?
-        (seq-filter (lambda (token) (not (or (invisible-p (car token))
-                                             (invisible-p (1- (cdr token)))))))
-
-        (seq-sort-by (lambda (token)
+      (seq-sort-by (lambda (token)
                        (abs (- previous-point (car token))))
-                     #'<)))))
+                     #'<
+                     tokens))))
 
 (defun hatty--create-hats ()
   "Create hats in the buffer given by ‘window-buffer’.
