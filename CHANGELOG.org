@@ -2,6 +2,7 @@
 - Hats are now rendered for characters not part of symbols.
 - Added function ~hatty-locate-token-region~ for getting the region of
   the token that the hat is placed over.
+- Added the rest of the hats available in cursorless.
 
 * 0.3.0 [2024-09-25 Wed]
 - When loading hatty, it will now try to pick colors appropriate for
