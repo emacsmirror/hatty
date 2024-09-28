@@ -1,3 +1,7 @@
+* NEXT
+- Added function ~hatty-locate-token-region~ for getting the region of
+  the token that the hat is placed over.
+
 * 0.3.0 [2024-09-25 Wed]
 - When loading hatty, it will now try to pick colors appropriate for
   the color theme of the user.

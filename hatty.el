@@ -134,7 +134,8 @@ create all combinations from ‘hatty-colors’ and ‘hatty-shapes’")
   marker
   character
   color
-  shape)
+  shape
+  token-region)
 
 (defvar-local hatty--hats '()
   "All hats located in the current buffer.")
@@ -144,26 +145,43 @@ create all combinations from ‘hatty-colors’ and ‘hatty-shapes’")
 This function is equivalent to ‘downcase’."
   (downcase character))
 
+(cl-defun hatty--locate-hat (character &optional color shape)
+  "Get  the hat over CHARACTER matching COLOR and SHAPE."
+  (setq color (or color 'default))
+  (setq shape (or shape 'default))
+  (seq-find (lambda (hat) (and (eq color (hatty--hat-color hat))
+                               (eq (hatty--normalize-character character)
+                                   (hatty--hat-character hat))
+                               (eq shape (hatty--hat-shape hat))))
+            hatty--hats))
+
 (cl-defun hatty-locate (character &optional color shape)
-  "Get the position of hat over CHARACTER matching COLOR and SHAPE.
+  "Get position of the hat over CHARACTER matching COLOR and SHAPE.
 
 COLOR and SHAPE should be identifiers as they occur in
 ‘hatty-colors’ and ‘hatty-shapes’.
 
 If COLOR or SHAPE is nil or unspecified, the default color or
 shape will be used."
-  (setq color (or color 'default))
-  (setq shape (or shape 'default))
-  (marker-position
-   (hatty--hat-marker
-    (seq-find (lambda (hat) (and (eq color (hatty--hat-color hat))
-                                 (eq (hatty--normalize-character character)
-                                     (hatty--hat-character hat))
-                                 (eq shape (hatty--hat-shape hat))))
-              hatty--hats))))
+  (hatty--hat-marker
+   (hatty--locate-hat character color shape)))
 
-(cl-defun hatty--make-hat (position &key color shape)
+(cl-defun hatty-locate-token-region (character &optional color shape)
+  "Get token region of the hat over CHARACTER with COLOR and SHAPE.
+
+COLOR and SHAPE should be identifiers as they occur in
+‘hatty-colors’ and ‘hatty-shapes’.
+
+If COLOR or SHAPE is nil or unspecified, the default color or
+shape will be used."
+  (hatty--hat-token-region
+   (hatty--locate-hat character color shape)))
+
+(cl-defun hatty--make-hat (position token-region &key color shape)
   "Create a hat at POSITION with color COLOR and shape SHAPE.
+
+TOKEN-REGION denotes the region of the token that the hat
+indicates.
 
 If COLOR or SHAPE is nil or unspecified, the default color or
 shape will be used. "
@@ -173,7 +191,10 @@ shape will be used. "
    :character (hatty--normalize-character (char-after position))
    :color color
    :marker (set-marker (make-marker) position (window-buffer))
-   :shape shape))
+   :shape shape
+   :token-region (cons
+                  (set-marker (make-marker) (car token-region))
+                  (set-marker (make-marker) (cdr token-region)))))
 
 (defvar hatty--next-styles '()
   "Alist mapping characters to index of next free style.")
@@ -232,9 +253,9 @@ TOKEN is a cons cell of the bounds of the token."
            finally return position)))
 
     (if requested-style
-        (hatty--make-hat position
-                              :color (car requested-style)
-                              :shape (cdr requested-style))
+        (hatty--make-hat position token
+                         :color (car requested-style)
+                         :shape (cdr requested-style))
       nil)))
 
 (defun hatty--get-tokens ()
