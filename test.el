@@ -30,7 +30,7 @@
 ;; TODO Change so it doesn't need to modify the default face.  This
 ;; could straightforwardly be done when anonymous faces are properly
 ;; supported.
-(ert-deftest hatty-test-text-scaling ()
+(ert-deftest hatty--text-scaling ()
   "Size of the character is retained at different scales."
   (dolist (height '(120 240 60          ;Nice values
                         173 37          ;Not nice values
@@ -51,7 +51,7 @@
         (set-face-attribute 'default nil :height previous-height)
         (should (equal previous-size current-size))))))
 
-(ert-deftest hatty-test-variable-width-font ()
+(ert-deftest hatty--variable-width-font ()
   "Variable width fonts have the right size."
   (let ((previous-size)
         (current-size))
@@ -64,7 +64,7 @@
       (setq current-size (window-text-pixel-size))
       (should (equal previous-size current-size)))))
 
-(ert-deftest hatty-test-extra-line-height ()
+(ert-deftest hatty--extra-line-height ()
   "If extra line height is present, use it."
   (let ((previous-size)
         (current-size))
@@ -77,11 +77,11 @@
         (hatty--draw-svg-hat (hatty--make-hat (point-min)))
         (should (= (* 2.0 previous-height) (cdr (window-text-pixel-size))))))))
 
-(defface hatty-test-face-large
+(defface hatty--test-face-large
   '((t . (:height 2.0 :inherit default)))
-  "Remove this when anonymous faces are properly supported.")
+  "TODO: Remove this when anonymous faces are properly supported.")
 
-(ert-deftest hatty-test-line-height-large-face ()
+(ert-deftest hatty--line-height-large-face ()
   "Do not use extra line height if character is larger than
 default height."
   (let ((previous-size)
@@ -92,11 +92,11 @@ default height."
       (let ((previous-height (cdr (window-text-pixel-size))))
         ;; TODO: Less nice test numbers
         (put-text-property (point-min) (point-max) 'line-height 2.0)
-        (put-text-property (point-min) (point-max) 'face 'hatty-test-face-large)
+        (put-text-property (point-min) (point-max) 'face 'hatty--test-face-large)
         (hatty--draw-svg-hat (hatty--make-hat (point-min)))
         (should (= (* 2.0 previous-height) (cdr (window-text-pixel-size))))))))
 
-(ert-deftest hatty-test-invisible-text ()
+(ert-deftest hatty--invisible-text ()
   "Invisible text should not contribute tokens."
   (with-temp-buffer
     (switch-to-buffer (current-buffer))
@@ -106,14 +106,14 @@ default height."
       (overlay-put overlay 'invisible t)
       (should (equal 0 (length (hatty--get-tokens)))))))
 
-(ert-deftest hatty-test-buffer-end-space ()
+(ert-deftest hatty--buffer-end-space ()
   "Tokenize buffer ending in space."
   (with-temp-buffer
     (switch-to-buffer (current-buffer))
     (insert "aaa bbb ccc  ")
     (should (equal 3 (length (hatty--get-tokens))))))
 
-(ert-deftest hatty-test-readonly-buffer ()
+(ert-deftest hatty--readonly-buffer ()
   "Adding hats should be possible in read-only mode."
   (with-temp-buffer
     (switch-to-buffer (current-buffer))
@@ -122,7 +122,7 @@ default height."
     (hatty-mode)
     (hatty-reallocate)))
 
-(ert-deftest hatty-test-readonly-text ()
+(ert-deftest hatty--readonly-text ()
   "Adding hats should be possible for read-only text."
   (with-temp-buffer
     (switch-to-buffer (current-buffer))
@@ -131,7 +131,7 @@ default height."
     (hatty-mode)
     (hatty-reallocate)))
 
-(ert-deftest hatty-test-anonymous-face ()
+(ert-deftest hatty--anonymous-face ()
   "Do not explode when encountering anonymous faces."
   (with-temp-buffer
     (switch-to-buffer (current-buffer))
@@ -140,7 +140,7 @@ default height."
     (hatty-mode)
     (hatty-reallocate)))
 
-(ert-deftest hatty-test-multiple-anonymous-faces ()
+(ert-deftest hatty--multiple-anonymous-faces ()
   "Do not explode when encountering multiple anonymous faces."
   (with-temp-buffer
     (switch-to-buffer (current-buffer))
@@ -150,7 +150,7 @@ default height."
     (hatty-mode)
     (hatty-reallocate)))
 
-(ert-deftest hatty-test-image-text-property ()
+(ert-deftest hatty--image-text-property ()
   "Do not add hats if an image is displaying as a text property."
   (with-temp-buffer
     (switch-to-buffer (current-buffer))
@@ -160,7 +160,7 @@ default height."
       (hatty-reallocate)
       (should (equal previous-size (window-text-pixel-size))))))
 
-(ert-deftest hatty-test-image-overlay ()
+(ert-deftest hatty--image-overlay ()
   "Do not add hats if an image is displaying as an overlay."
   (with-temp-buffer
     (switch-to-buffer (current-buffer))
@@ -173,7 +173,7 @@ default height."
       (hatty-reallocate)
       (should (equal previous-size (window-text-pixel-size))))))
 
-(ert-deftest hatty-test-string-property ()
+(ert-deftest hatty--string-property ()
   "Do not add hats if a string is displaying as a text property.
 
 This is crucial to not reveal characters of password prompts."
@@ -187,7 +187,7 @@ This is crucial to not reveal characters of password prompts."
                                 (overlay-get overlay 'hatty-hat))
                               (overlays-in (point-min) (point-max)))))))
 
-(ert-deftest hatty-test-string-overlay ()
+(ert-deftest hatty--string-overlay ()
   "Do not add hats if an image is displaying as an overlay.
 
 This is crucial to not reveal characters of password prompts."
@@ -199,7 +199,7 @@ This is crucial to not reveal characters of password prompts."
                                 (overlay-get overlay 'hatty-hat))
                               (overlays-in (point-min) (point-max)))))))
 
-(ert-deftest hatty-test-raise-display-text-property ()
+(ert-deftest hatty--raise-display-text-property ()
   "The 'raise text display property raises hatted characters."
   (with-temp-buffer
     (switch-to-buffer (current-buffer))
@@ -211,7 +211,7 @@ This is crucial to not reveal characters of password prompts."
       (hatty--draw-svg-hat (hatty--make-hat (+ (point-min) 4)))
       (should (equal previous-size (window-text-pixel-size))))))
 
-(ert-deftest hatty-test-raise-display-overlay-property ()
+(ert-deftest hatty--raise-display-overlay-property ()
   "The 'raise overlay display property raises hatted characters."
   (with-temp-buffer
     (switch-to-buffer (current-buffer))
@@ -227,7 +227,7 @@ This is crucial to not reveal characters of password prompts."
       (hatty--draw-svg-hat (hatty--make-hat (+ (point-min) 4)))
       (should (equal previous-size (window-text-pixel-size))))))
 
-(ert-deftest hatty-test-deleted-buffer-content-line-height ()
+(ert-deftest hatty--deleted-buffer-content-line-height ()
   "Deleting buffer contents should preserve line height overlay."
   (with-temp-buffer
     (switch-to-buffer (current-buffer))
@@ -239,7 +239,7 @@ This is crucial to not reveal characters of password prompts."
     ;; remaining position should be non-nil.
     (should (and "check 2" (overlays-in (point-min) (point-max))))))
 
-(ert-deftest hatty-test-links ()
+(ert-deftest hatty--links ()
   "Hats should render over links."
   (with-temp-buffer
     (switch-to-buffer (current-buffer))

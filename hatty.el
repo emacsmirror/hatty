@@ -360,15 +360,18 @@ properties."
          (descent (elt font-metrics 5))
          (char-width (elt glyph-metrics 4))
          (char-height (+ ascent descent))
-         (raise (round (* char-height (hatty--get-raise-display-property position))))
+         (raise (round
+                 (* char-height
+                    (hatty--get-raise-display-property position))))
 
          ;; Should probably look at the final newline for this property
          (line-height (get-char-property position 'line-height))
          (default-char-height (frame-char-height))
-         (default-line-height (cond
-                               ((integerp line-height) (max default-char-height line-height))
-                               ((floatp line-height) (* default-char-height line-height))
-                               (t default-char-height)))
+         (default-line-height
+          (cond
+           ((integerp line-height) (max default-char-height line-height))
+           ((floatp line-height) (* default-char-height line-height))
+           (t default-char-height)))
 
          (svg-height (max default-line-height char-height))
          (svg-width char-width)
