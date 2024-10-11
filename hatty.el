@@ -85,7 +85,7 @@ The identifier symbol `default' indicates the default color."
 ;; it that way if I implement the above TODO.
 (defcustom hatty-shapes
   '((default  . "M6 9C9.31371 9 12 6.98528 12 4.5C12 2.01472 9.31371 0 6 0C2.68629 0 0 2.01472 0 4.5C0 6.98528 2.68629 9 6 9Z")
-    (bolt  . "M12 4V0C12 0 9 5 8 5C7 5 3 0 3 0L0 5V9C0 9 3 5 4 5C5 5 9 9 9 9L12 4Z")
+    (bolt  . "M 12,4 V 0 C 12,0 9,4 8,4 7,4 3,0 3,0 L 0,5 V 9 C 0,9 3,5 4,5 5,5 9,9 9,9 Z")
     (curve  . "M6.00016 3.5C10 3.5 12 7.07378 12 9C12 4 10.5 0 6.00016 0C1.50032 0 0 4 0 9C0 7.07378 2.00032 3.5 6.00016 3.5Z")
     (fox . "M6.00001 9L0 0C0 0 3.71818 2.5 6 2.5C8.28182 2.5 12 0 12 0L6.00001 9Z")
     (frame . "M0 0.000115976V8.99988H12V0L0 0.000115976ZM9.5 6.5H6H2.5V4.5V2.5H6H9.5V4.5V6.5Z")
@@ -105,7 +105,7 @@ The identifier symbol `default' indicates the default ."
   :group 'hatty
 ;; The following notice is included for compliance with the license of
 ;; the cursorless project, from which the above hat designs were
-;; copied.
+;; copied.  The "bolt" path has been modified to be symmetric.
 ;;
 ;; MIT License
 ;;
