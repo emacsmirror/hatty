@@ -254,4 +254,19 @@ This is crucial to not reveal characters of password prompts."
       null
       should-not)))
 
+(ert-deftest hatty--test-linewrap ()
+  "Linewrapping should retain correct height.
+
+Only the last visual line is affected by line height.  Check that
+this quality is retained when rendering hats."
+  (with-temp-buffer
+    (switch-to-buffer (current-buffer))
+    (dotimes (i 100)
+      (insert "aaaaaaaaa bbbbbbbbbbbbb cccccccccccc "))
+    (insert "\n")
+    (hatty-mode)
+    (let ((before (window-text-pixel-size)))
+      (hatty-reallocate)
+      (should (equal before (window-text-pixel-size))))))
+
 ;;; tests.el ends here

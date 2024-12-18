@@ -329,6 +329,16 @@ properties."
            (if property (cadr property) 0.0)))
         (_ 0.0)))))
 
+(defun hatty--on-final-line-wrap (position)
+  "Return t if POSITION is at the last visual line of current line.
+
+If lines are long, they may visually wrap.  This function checks
+if POSITION lies on the last wrapping of the current line."
+  (save-excursion
+    (goto-char position)
+    (end-of-visual-line)
+    (= (point) (progn (end-of-line) (point)))))
+
 (defun hatty--draw-svg-hat (hat)
   "Overlay character of HAT with with image of it having the hat."
 
@@ -369,6 +379,9 @@ properties."
          (default-char-height (frame-char-height))
          (default-line-height
           (cond
+           ;; Lines that are wrapped do not profit of the additional
+           ;; line height of the final newline
+           ((not (hatty--on-final-line-wrap position)) default-char-height)
            ((integerp line-height) (max default-char-height line-height))
            ((floatp line-height) (* default-char-height line-height))
            (t default-char-height)))
@@ -411,8 +424,8 @@ properties."
                    'display
                    (svg-image svg
                               :ascent
-                              (round (* 100 (- svg-height descent (- raise)))
-                                     svg-height)
+                              (ceiling (* 100 (- svg-height descent (- raise)))
+                                       svg-height)
                               :scale 1.0)))
     (overlay-put overlay 'hatty t)
     (overlay-put overlay 'hatty-hat t)))
