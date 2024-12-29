@@ -1,4 +1,4 @@
-* NEXT
+* 0.3.1 [2024-12-29 Sun]
 - Hats are now rendered for non-alphanumeric characters as well.
 - Added function ~hatty-locate-token-region~ for getting the region of
   the token that a hat is placed over.
