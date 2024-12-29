@@ -78,13 +78,23 @@ The identifier symbol `default' indicates the default color."
   :type '(alist :key-type symbol :value-type color)
   :group 'hatty)
 
-;; TODO: Use proper svgs here.  Also add the other hats.
+;; TODO: Use proper svgs here?
+
+;; NOTE: "cross" does not render with the original opening in the
+;; middle.  However, I quite like it filled in, so I might try to keep
+;; it that way if I implement the above TODO.
 (defcustom hatty-shapes
   '((default  . "M6 9C9.31371 9 12 6.98528 12 4.5C12 2.01472 9.31371 0 6 0C2.68629 0 0 2.01472 0 4.5C0 6.98528 2.68629 9 6 9Z")
-    (bolt  . "M12 4V0C12 0 9 5 8 5C7 5 3 0 3 0L0 5V9C0 9 3 5 4 5C5 5 9 9 9 9L12 4Z")
+    (bolt  . "M 12,4 V 0 C 12,0 9,4 8,4 7,4 3,0 3,0 L 0,5 V 9 C 0,9 3,5 4,5 5,5 9,9 9,9 Z")
     (curve  . "M6.00016 3.5C10 3.5 12 7.07378 12 9C12 4 10.5 0 6.00016 0C1.50032 0 0 4 0 9C0 7.07378 2.00032 3.5 6.00016 3.5Z")
     (fox . "M6.00001 9L0 0C0 0 3.71818 2.5 6 2.5C8.28182 2.5 12 0 12 0L6.00001 9Z")
-    (frame . "M0 0.000115976V8.99988H12V0L0 0.000115976ZM9.5 6.5H6H2.5V4.5V2.5H6H9.5V4.5V6.5Z"))
+    (frame . "M0 0.000115976V8.99988H12V0L0 0.000115976ZM9.5 6.5H6H2.5V4.5V2.5H6H9.5V4.5V6.5Z")
+    (play . "M12 4.49999L0 9C0 9 3 6.2746 3 4.49999C3 2.72537 0 0 0 0L12 4.49999Z")
+    (wing . "M6 0C6 0 7 3 8.5 4.5C10 6 12 7 12 7V9C12 9 8.5 7 6 7C3.5 7 0 9 0 9V7C0 7 2 6 3.5 4.5C5 3 6 0 6 0Z")
+    (hole . "M1.5 4.5L0 7H2.5L3.5 9L6 7.5L8.5 9L9.5 7H12L10.5 4.5L12 2H9.5L8.5 0L6 1.5L3.5 0L2.5 2H0Z M6 5.5L4 6.5L3 4.5L4 2.5L6 3.5L8 2.5L9 4.5L8 6.5L6 5.5Z")
+    (ex . "M1.5 4.5L0 7H2.5L3.5 9L6 7.5L8.5 9L9.5 7H12L10.5 4.5L12 2H9.5L8.5 0L6 1.5L3.5 0L2.5 2H0Z M6 5.5L4 6.5L3 4.5L4 2.5L6 3.5L8 2.5L9 4.5L8 6.5L6 5.5Z")
+    (cross ."M5.25 0C5.25 0 4.5 1.5 3.5 2.5C2.49483 3.50517 0 3.75 0 3.75V5.25C0 5.25 2.49483 5.49483 3.5 6.5C4.5 7.5 5.25 9 5.25 9H6.75C6.75 9 7.5 7.5 8.5 6.5C9.50517 5.49483 12 5.25 12 5.25V3.75C12 3.75 9.50517 3.50517 8.5 2.5C7.5 1.5 6.75 0 6.75 0H5.25ZM5.75 6.5H6.25C6.25 6.5 6.58435 5.25599 7 5C7.41565 4.74401 8.75 4.75 8.75 4.75V4.25C8.75 4.25 7.41565 4.25599 7 4C6.58435 3.74401 6.25 2.5 6.25 2.5H5.75C5.75 2.5 5.41565 3.74401 5 4C4.58435 4.25599 3.25 4.25 3.25 4.25V4.75C3.25 4.75 4.58435 4.74401 5 5C5.41565 5.25599 5.75 6.5 5.75 6.5Z" )
+    (eye . "M12 4L6.5 0H5.5L0 4V5L5.5 9H6.5L12 5V4ZM6 7.5C6 7.5 4.5 6.5 4.5 4.5C4.5 2.5 6.01103 1.5 6 1.5C6 1.5 7.5 2.5 7.5 4.5C7.5 6.5 6 7.5 6 7.5Z"))
   "Alist of shapes used in rendering hats, indexed by identifier.
 
 Identifiers must be symbols.  The shapes must specify valid svg
@@ -95,7 +105,7 @@ The identifier symbol `default' indicates the default ."
   :group 'hatty
 ;; The following notice is included for compliance with the license of
 ;; the cursorless project, from which the above hat designs were
-;; copied.
+;; copied.  The "bolt" path has been modified to be symmetric.
 ;;
 ;; MIT License
 ;;
@@ -134,7 +144,8 @@ create all combinations from ‘hatty-colors’ and ‘hatty-shapes’")
   marker
   character
   color
-  shape)
+  shape
+  token-region)
 
 (defvar-local hatty--hats '()
   "All hats located in the current buffer.")
@@ -144,26 +155,43 @@ create all combinations from ‘hatty-colors’ and ‘hatty-shapes’")
 This function is equivalent to ‘downcase’."
   (downcase character))
 
+(cl-defun hatty--locate-hat (character &optional color shape)
+  "Get  the hat over CHARACTER matching COLOR and SHAPE."
+  (setq color (or color 'default))
+  (setq shape (or shape 'default))
+  (seq-find (lambda (hat) (and (eq color (hatty--hat-color hat))
+                               (eq (hatty--normalize-character character)
+                                   (hatty--hat-character hat))
+                               (eq shape (hatty--hat-shape hat))))
+            hatty--hats))
+
 (cl-defun hatty-locate (character &optional color shape)
-  "Get the position of hat over CHARACTER matching COLOR and SHAPE.
+  "Get position of the hat over CHARACTER matching COLOR and SHAPE.
 
 COLOR and SHAPE should be identifiers as they occur in
 ‘hatty-colors’ and ‘hatty-shapes’.
 
 If COLOR or SHAPE is nil or unspecified, the default color or
 shape will be used."
-  (setq color (or color 'default))
-  (setq shape (or shape 'default))
-  (marker-position
-   (hatty--hat-marker
-    (seq-find (lambda (hat) (and (eq color (hatty--hat-color hat))
-                                 (eq (hatty--normalize-character character)
-                                     (hatty--hat-character hat))
-                                 (eq shape (hatty--hat-shape hat))))
-              hatty--hats))))
+  (hatty--hat-marker
+   (hatty--locate-hat character color shape)))
 
-(cl-defun hatty--make-hat (position &key color shape)
+(cl-defun hatty-locate-token-region (character &optional color shape)
+  "Get token region of the hat over CHARACTER with COLOR and SHAPE.
+
+COLOR and SHAPE should be identifiers as they occur in
+‘hatty-colors’ and ‘hatty-shapes’.
+
+If COLOR or SHAPE is nil or unspecified, the default color or
+shape will be used."
+  (hatty--hat-token-region
+   (hatty--locate-hat character color shape)))
+
+(cl-defun hatty--make-hat (position token-region &key color shape)
   "Create a hat at POSITION with color COLOR and shape SHAPE.
+
+TOKEN-REGION denotes the region of the token that the hat
+indicates.
 
 If COLOR or SHAPE is nil or unspecified, the default color or
 shape will be used. "
@@ -173,7 +201,10 @@ shape will be used. "
    :character (hatty--normalize-character (char-after position))
    :color color
    :marker (set-marker (make-marker) position (window-buffer))
-   :shape shape))
+   :shape shape
+   :token-region (cons
+                  (set-marker (make-marker) (car token-region))
+                  (set-marker (make-marker) (cdr token-region)))))
 
 (defvar hatty--next-styles '()
   "Alist mapping characters to index of next free style.")
@@ -232,39 +263,44 @@ TOKEN is a cons cell of the bounds of the token."
            finally return position)))
 
     (if requested-style
-        (hatty--make-hat position
-                              :color (car requested-style)
-                              :shape (cdr requested-style))
+        (hatty--make-hat position token
+                         :color (car requested-style)
+                         :shape (cdr requested-style))
       nil)))
 
 (defun hatty--get-tokens ()
   "Return bounds of tokens in the visible buffer.
 Order tokens by importance."
-  (let ((previous-point (point)))
+  (let* ((previous-point (point))
+         token
+         (tokens '())
+         (next-token
+          (lambda ()
+            (skip-chars-forward "[:space:]\n")
+            (let ((start (point)))
+              (if (zerop (skip-syntax-forward "w_'"))
+                  (skip-syntax-forward "^w_' " (1+ (point))))
+              (setq token
+                    (if (= start (point))
+                        nil
+                      (cons start (point))))))))
     (save-excursion
       (goto-char (window-start))
-      (forward-thing 'symbol)
-      (thread-last
-        (cl-loop
-         ;; If we are at the end of the window, collect token before
-         ;; exiting the loop.  If we would use <= in the while loop
-         ;; instead, we would risk an infinite loop if we ended up at
-         ;; the end of the buffer.
-         if (and (equal (point) (window-end))
-                 (bounds-of-thing-at-point 'symbol))
-         collect (bounds-of-thing-at-point 'symbol)
+      (while (and (<= (point) (window-end))
+                  (funcall next-token))
+        (push token tokens))
 
-         while (< (point) (window-end))
-         collect (bounds-of-thing-at-point 'symbol)
-         do (forward-thing 'symbol))
+      ;; TODO: Move to hat assignment algorithm?
+      (setq tokens
+            (seq-filter
+             (lambda (token) (not (or (invisible-p (car token))
+                                      (invisible-p (1- (cdr token))))))
+             tokens))
 
-        ;; Move to hat assignment algorithm?
-        (seq-filter (lambda (token) (not (or (invisible-p (car token))
-                                             (invisible-p (1- (cdr token)))))))
-
-        (seq-sort-by (lambda (token)
+      (seq-sort-by (lambda (token)
                        (abs (- previous-point (car token))))
-                     #'<)))))
+                     #'<
+                     tokens))))
 
 (defun hatty--create-hats ()
   "Create hats in the buffer given by ‘window-buffer’.
@@ -292,6 +328,16 @@ properties."
          (let ((property (seq-find #'raise-property-p display-property)))
            (if property (cadr property) 0.0)))
         (_ 0.0)))))
+
+(defun hatty--on-final-line-wrap (position)
+  "Return t if POSITION is at the last visual line of current line.
+
+If lines are long, they may visually wrap.  This function checks
+if POSITION lies on the last wrapping of the current line."
+  (save-excursion
+    (goto-char position)
+    (end-of-visual-line)
+    (= (point) (progn (end-of-line) (point)))))
 
 (defun hatty--draw-svg-hat (hat)
   "Overlay character of HAT with with image of it having the hat."
@@ -324,15 +370,21 @@ properties."
          (descent (elt font-metrics 5))
          (char-width (elt glyph-metrics 4))
          (char-height (+ ascent descent))
-         (raise (round (* char-height (hatty--get-raise-display-property position))))
+         (raise (round
+                 (* char-height
+                    (hatty--get-raise-display-property position))))
 
          ;; Should probably look at the final newline for this property
          (line-height (get-char-property position 'line-height))
          (default-char-height (frame-char-height))
-         (default-line-height (cond
-                               ((integerp line-height) (max default-char-height line-height))
-                               ((floatp line-height) (* default-char-height line-height))
-                               (t default-char-height)))
+         (default-line-height
+          (cond
+           ;; Lines that are wrapped do not profit of the additional
+           ;; line height of the final newline
+           ((not (hatty--on-final-line-wrap position)) default-char-height)
+           ((integerp line-height) (max default-char-height line-height))
+           ((floatp line-height) (* default-char-height line-height))
+           (t default-char-height)))
 
          (svg-height (max default-line-height char-height))
          (svg-width char-width)
@@ -372,8 +424,8 @@ properties."
                    'display
                    (svg-image svg
                               :ascent
-                              (round (* 100 (- svg-height descent (- raise)))
-                                     svg-height)
+                              (ceiling (* 100 (- svg-height descent (- raise)))
+                                       svg-height)
                               :scale 1.0)))
     (overlay-put overlay 'hatty t)
     (overlay-put overlay 'hatty-hat t)))

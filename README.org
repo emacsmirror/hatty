@@ -36,6 +36,8 @@ a hat, use ~hatty-locate~.  For example,
 #+end_src
 
 will return the position of the yellow bolt over character "n".
+Similarly, ~hatty-locate-token-region~ returns the region of the token
+that the hat is placed over.
 
 The available colors and shapes are specified by the variables
 ~hatty-colors~ and ~hatty-shapes~.  The keys in these alists are the
