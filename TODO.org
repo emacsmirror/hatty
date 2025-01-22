@@ -9,7 +9,13 @@
 * TODO Fix some issues in ascent
 Should be visible in the TODO face of this header.
 
+* TODO Fix rendering for truncated lines
+Because the final is not visible, it does not actually gain any
+additional height.  In [[file:hatty.el::defun hatty--create-hats]], we do
+not cover this case.
+
 * Testing
+** TODO Get tests running again
 ** TODO Deduplicate text- and overlay property tests
 ** TODO Think about removing reliance on hatty-reallocate
 This function is only available when hatty-mode is active.

@@ -1,3 +1,6 @@
+* NEXT
+- Fix slow hat allocation for multiply wrapped lines.
+
 * 0.3.1 [2024-12-29 Sun]
 - Hats are now rendered for non-alphanumeric characters as well.
 - Added function ~hatty-locate-token-region~ for getting the region of
