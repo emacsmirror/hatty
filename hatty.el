@@ -1,6 +1,6 @@
 ;;; hatty.el --- Query positions through hats        -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2024 Erik Präntare
+;; Copyright (C) 2024, 2025 Erik Präntare
 
 ;; Author: Erik Präntare
 ;; Keywords: convenience
@@ -145,7 +145,8 @@ create all combinations from ‘hatty-colors’ and ‘hatty-shapes’")
   character
   color
   shape
-  token-region)
+  token-region
+  (on-final-visual-line t))
 
 (defvar-local hatty--hats '()
   "All hats located in the current buffer.")
@@ -155,7 +156,7 @@ create all combinations from ‘hatty-colors’ and ‘hatty-shapes’")
 This function is equivalent to ‘downcase’."
   (downcase character))
 
-(cl-defun hatty--locate-hat (character &optional color shape)
+(defun hatty--locate-hat (character &optional color shape)
   "Get  the hat over CHARACTER matching COLOR and SHAPE."
   (setq color (or color 'default))
   (setq shape (or shape 'default))
@@ -165,7 +166,7 @@ This function is equivalent to ‘downcase’."
                                (eq shape (hatty--hat-shape hat))))
             hatty--hats))
 
-(cl-defun hatty-locate (character &optional color shape)
+(defun hatty-locate (character &optional color shape)
   "Get position of the hat over CHARACTER matching COLOR and SHAPE.
 
 COLOR and SHAPE should be identifiers as they occur in
@@ -176,7 +177,7 @@ shape will be used."
   (hatty--hat-marker
    (hatty--locate-hat character color shape)))
 
-(cl-defun hatty-locate-token-region (character &optional color shape)
+(defun hatty-locate-token-region (character &optional color shape)
   "Get token region of the hat over CHARACTER with COLOR and SHAPE.
 
 COLOR and SHAPE should be identifiers as they occur in
@@ -303,8 +304,8 @@ Order tokens by importance."
                      tokens))))
 
 (defun hatty--create-hats ()
-  "Create hats in the buffer given by ‘window-buffer’.
-Return the created hats.
+  "Create hats in the buffer given by `window-buffer'.
+Set `hatty--hats' to the created hats and return them.
 
 Tokens are queried from `hatty--get-tokens'"
   (hatty--reset-styles)
@@ -313,7 +314,47 @@ Tokens are queried from `hatty--get-tokens'"
           (let ((tokens (hatty--get-tokens)))
             (seq-filter
              #'identity
-             (seq-map #'hatty--create-hat tokens))))))
+             (seq-map #'hatty--create-hat tokens)))))
+
+  ;; To determine whether a hat is on the last visual line of the
+  ;; logical line, we want to do it in one pass for all hats to
+  ;; minimize the amount of visual line movements performed.  This is
+  ;; because visual line movements functions are slow, but needed to
+  ;; determine whether we are on the last visual line.  We need to
+  ;; determine this to correctly determine the line height of the
+  ;; visual line later (in hatty--draw-svg-hat).
+
+  ;; First, we sort the hats in order of occurrence.
+  (setq hatty--hats
+        (seq-sort (lambda (h1 h2) (< (hatty--hat-marker h1) (hatty--hat-marker h2)))
+                  hatty--hats))
+
+  ;; Truncated lines are not handled as of now.
+  (unless truncate-lines
+    (save-excursion
+      (goto-char (window-start))
+      (end-of-line)
+      (let ((worklist hatty--hats))
+        (while worklist
+          (let (last-visual-begin
+                last-visual-end)
+            (end-of-line)
+            (setq last-visual-end (point))
+            (beginning-of-visual-line)
+            (setq last-visual-begin (point))
+            ;; Mark all hats that occur before the last visual line...
+            (while (and worklist
+                        (< (hatty--hat-marker (car worklist)) last-visual-begin))
+              (setf (hatty--hat-on-final-visual-line (car worklist)) nil)
+              (pop worklist))
+            ;; ... and all hats within it.
+            (while (and worklist
+                        (< (hatty--hat-marker (car worklist)) last-visual-end))
+              (setf (hatty--hat-on-final-visual-line (car worklist)) t)
+              (pop worklist)))
+          (vertical-motion 1)))))
+
+  hatty--hats)
 
 (defun hatty--get-raise-display-property (position)
   "Get value of the `raise' display property at POSITION.
@@ -329,15 +370,6 @@ properties."
            (if property (cadr property) 0.0)))
         (_ 0.0)))))
 
-(defun hatty--on-final-line-wrap (position)
-  "Return t if POSITION is at the last visual line of current line.
-
-If lines are long, they may visually wrap.  This function checks
-if POSITION lies on the last wrapping of the current line."
-  (save-excursion
-    (goto-char position)
-    (end-of-visual-line)
-    (= (point) (progn (end-of-line) (point)))))
 
 (defun hatty--draw-svg-hat (hat)
   "Overlay character of HAT with with image of it having the hat."
@@ -381,7 +413,7 @@ if POSITION lies on the last wrapping of the current line."
           (cond
            ;; Lines that are wrapped do not profit of the additional
            ;; line height of the final newline
-           ((not (hatty--on-final-line-wrap position)) default-char-height)
+           ((not (hatty--hat-on-final-visual-line hat)) default-char-height)
            ((integerp line-height) (max default-char-height line-height))
            ((floatp line-height) (* default-char-height line-height))
            (t default-char-height)))
