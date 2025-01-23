@@ -323,34 +323,36 @@ Tokens are queried from `hatty--get-tokens'"
   ;; determine whether we are on the last visual line.  We need to
   ;; determine this to correctly determine the line height of the
   ;; visual line later (in hatty--draw-svg-hat).
+
+  ;; First, we sort the hats in order of occurrence.
   (setq hatty--hats
         (seq-sort (lambda (h1 h2) (< (hatty--hat-marker h1) (hatty--hat-marker h2)))
                   hatty--hats))
+
+  ;; Truncated lines are not handled as of now.
   (unless truncate-lines
     (save-excursion
       (goto-char (window-start))
-      (end-of-visual-line)
-      (let ((on-final-visual-line
-             (save-excursion
-               (= (point)
-                  (progn (end-of-line) (point)))))
-            (worklist hatty--hats))
+      (end-of-line)
+      (let ((worklist hatty--hats))
         (while worklist
-          (let ((current-hat (car worklist)))
-            (if (< (hatty--hat-marker current-hat) (point))
-                (progn
-                  (setf (hatty--hat-on-final-visual-line current-hat)
-                        on-final-visual-line)
-                  (pop worklist))
-              ;; When on the final visual line, end-of-visual-line does
-              ;; not progress to the next line.  We must manually move
-              ;; to it.
-              (when on-final-visual-line (forward-char))
-              (end-of-visual-line)
-              (setq on-final-visual-line
-                    (save-excursion
-                      (= (point)
-                         (progn (end-of-line) (point)))))))))))
+          (let (last-visual-begin
+                last-visual-end)
+            (end-of-line)
+            (setq last-visual-end (point))
+            (beginning-of-visual-line)
+            (setq last-visual-begin (point))
+            ;; Mark all hats that occur before the last visual line...
+            (while (and worklist
+                        (< (hatty--hat-marker (car worklist)) last-visual-begin))
+              (setf (hatty--hat-on-final-visual-line (car worklist)) nil)
+              (pop worklist))
+            ;; ... and all hats within it.
+            (while (and worklist
+                        (< (hatty--hat-marker (car worklist)) last-visual-end))
+              (setf (hatty--hat-on-final-visual-line (car worklist)) t)
+              (pop worklist)))
+          (vertical-motion 1)))))
 
   hatty--hats)
 
