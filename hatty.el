@@ -239,7 +239,7 @@ Done before hat reallocation is made."
   (setq hatty--next-styles '()))
 
 (defun hatty--select-hat-character (characters)
-  "Return the character with highest priorities style from CHARACTERS."
+  "Return the character with highest style priority of CHARACTERS."
   (car (seq-sort-by #'hatty--next-style-index #'< characters)))
 
 (defun hatty--create-hat (token)
@@ -247,27 +247,26 @@ Done before hat reallocation is made."
 Return the hat if successful, otherwise return nil.
 
 TOKEN is a cons cell of the bounds of the token."
-  (let* ((characters
-          (thread-last
-            (buffer-substring (car token) (cdr token))
-            string-to-list
-            seq-uniq))
-         (selected-character
-          (hatty--select-hat-character characters))
-         (requested-style
-          (hatty--request-style selected-character))
-         (position
-          (cl-loop
-           with position = (car token)
-           until (equal (char-after position) selected-character)
-           do (setq position (1+ position))
-           finally return position)))
-
-    (if requested-style
-        (hatty--make-hat position token
-                         :color (car requested-style)
-                         :shape (cdr requested-style))
-      nil)))
+  (if-let* ((characters
+             (thread-last
+               (buffer-substring (car token) (cdr token))
+               string-to-list
+               seq-uniq
+               ;; Remove control characters.  In ASCII, they are before #x20.
+               (seq-filter (lambda (c) (>= c #x20)))))
+            (selected-character
+             (hatty--select-hat-character characters))
+            (requested-style
+             (hatty--request-style selected-character))
+            (position
+             (cl-loop
+              with position = (car token)
+              until (eq (char-after position) selected-character)
+              do (setq position (1+ position))
+              finally return position)))
+      (hatty--make-hat position token
+                       :color (car requested-style)
+                       :shape (cdr requested-style))))
 
 (defun hatty--get-tokens ()
   "Return bounds of tokens in the visible buffer.
