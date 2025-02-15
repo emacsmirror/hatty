@@ -1,6 +1,6 @@
 ;;; hatty.el --- Query positions through hats        -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2024 Erik Präntare
+;; Copyright (C) 2024, 2025 Erik Präntare
 
 ;; This file is part of hatty.el.
 
@@ -70,11 +70,12 @@
         (current-size))
     (with-temp-buffer
       (switch-to-buffer (current-buffer))
-      (insert "i")
+      (insert "i\n")
       (let ((previous-height (cdr (window-text-pixel-size))))
         ;; TODO: Less nice test numbers
         (put-text-property (point-min) (point-max) 'line-height 2.0)
-        (hatty--draw-svg-hat (hatty--make-hat (point-min)))
+        (hatty--draw-svg-hat (hatty--make-hat (point-min)
+                                              (cons (point-min) (1+ (point-min)))))
         (should (= (* 2.0 previous-height) (cdr (window-text-pixel-size))))))))
 
 (defface hatty--test-face-large
@@ -88,12 +89,13 @@ default height."
         (current-size))
     (with-temp-buffer
       (switch-to-buffer (current-buffer))
-      (insert "i")
+      (insert "i\n")
       (let ((previous-height (cdr (window-text-pixel-size))))
         ;; TODO: Less nice test numbers
         (put-text-property (point-min) (point-max) 'line-height 2.0)
         (put-text-property (point-min) (point-max) 'face 'hatty--test-face-large)
-        (hatty--draw-svg-hat (hatty--make-hat (point-min)))
+        (hatty--draw-svg-hat (hatty--make-hat (point-min)
+                                              (cons (point-min) (1+ (point-min)))))
         (should (= (* 2.0 previous-height) (cdr (window-text-pixel-size))))))))
 
 (ert-deftest hatty--invisible-text ()
@@ -207,8 +209,8 @@ This is crucial to not reveal characters of password prompts."
     (add-display-text-property (+ (point-min) 2) (+ (point-min) 3) 'raise 0.23)
     (add-display-text-property (+ (point-min) 4) (+ (point-min) 5) 'raise -0.3)
     (let ((previous-size (window-text-pixel-size)))
-      (hatty--draw-svg-hat (hatty--make-hat (+ (point-min) 2)))
-      (hatty--draw-svg-hat (hatty--make-hat (+ (point-min) 4)))
+      (hatty--draw-svg-hat (hatty--make-hat (+ (point-min) 2) nil))
+      (hatty--draw-svg-hat (hatty--make-hat (+ (point-min) 4) nil))
       (should (equal previous-size (window-text-pixel-size))))))
 
 (ert-deftest hatty--raise-display-overlay-property ()
@@ -223,8 +225,8 @@ This is crucial to not reveal characters of password prompts."
     (overlay-put (make-overlay (+ (point-min) 4) (+ (point-min) 5))
                  'display [(raise -0.3)])
     (let ((previous-size (window-text-pixel-size)))
-      (hatty--draw-svg-hat (hatty--make-hat (+ (point-min) 2)))
-      (hatty--draw-svg-hat (hatty--make-hat (+ (point-min) 4)))
+      (hatty-mode)
+      (hatty-reallocate)
       (should (equal previous-size (window-text-pixel-size))))))
 
 (ert-deftest hatty--deleted-buffer-content-line-height ()

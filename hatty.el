@@ -4,7 +4,7 @@
 
 ;; Author: Erik Präntare
 ;; Keywords: convenience
-;; Version: 0.2.1
+;; Version: 1.0.0
 ;; Homepage: https://github.com/ErikPrantare/hatty.el
 ;; Package-Requires: ((emacs "26.1"))
 ;; Created: 05 Jul 2024
@@ -46,30 +46,34 @@
   :link '(emacs-commentary-link :tag "Commentary" "hatty.el"))
 
 (defcustom hatty-colors
-  (cond
-   ((memq 'modus-vivendi custom-enabled-themes)
-    `((default . ,(modus-themes-color 'fg-dim))
-      (yellow . ,(modus-themes-color 'yellow-graph-0-bg))
-      (red . ,(modus-themes-color 'red-intense))
-      (blue .  ,(modus-themes-color 'blue-graph-0-bg))
-      (pink . ,(modus-themes-color 'magenta-graph-0-bg))
-      (green . ,(modus-themes-color 'green))))
+  (let ((default-colors
+         `((default . ,(face-attribute 'term :foreground nil t))
+           (yellow . ,(face-attribute 'term-color-yellow :foreground nil t))
+           (red . ,(face-attribute 'term-color-red :foreground nil t))
+           (blue . ,(face-attribute 'term-color-blue :foreground nil t))
+           (pink . ,(face-attribute 'term-color-magenta :foreground nil t))
+           (green . ,(face-attribute 'term-color-green :foreground nil t)))))
 
-   ;; No yellow here, as it is not very visible.
-   ((memq 'modus-operandi custom-enabled-themes)
-    `((default . ,(modus-themes-color 'fg-main))
-      (red . ,(modus-themes-color 'red-intense))
-      (blue .  ,(modus-themes-color 'blue-intense-bg))
-      (pink . ,(modus-themes-color 'magenta-graph-0-bg))
-      (green . ,(modus-themes-color 'green-graph-0-bg))))
+    (if (fboundp 'modus-themes-color) ; Guard to make byte compiler happy
+        (cond
+         ((memq 'modus-vivendi custom-enabled-themes)
+          `((default . ,(modus-themes-color 'fg-dim))
+            (yellow . ,(modus-themes-color 'yellow-graph-0-bg))
+            (red . ,(modus-themes-color 'red-intense))
+            (blue .  ,(modus-themes-color 'blue-graph-0-bg))
+            (pink . ,(modus-themes-color 'magenta-graph-0-bg))
+            (green . ,(modus-themes-color 'green))))
 
-   (t
-    `((default . ,(face-attribute 'term :foreground nil t))
-      (yellow . ,(face-attribute 'term-color-yellow :foreground nil t))
-      (red . ,(face-attribute 'term-color-red :foreground nil t))
-      (blue . ,(face-attribute 'term-color-blue :foreground nil t))
-      (pink . ,(face-attribute 'term-color-magenta :foreground nil t))
-      (green . ,(face-attribute 'term-color-green :foreground nil t)))))
+         ;; No yellow here, as it is not very visible.
+         ((memq 'modus-operandi custom-enabled-themes)
+          `((default . ,(modus-themes-color 'fg-main))
+            (red . ,(modus-themes-color 'red-intense))
+            (blue .  ,(modus-themes-color 'blue-intense-bg))
+            (pink . ,(modus-themes-color 'magenta-graph-0-bg))
+            (green . ,(modus-themes-color 'green-graph-0-bg))))
+
+         (t default-colors))
+      default-colors))
   "Alist of colors used in rendering hats, indexed by identifier.
 
 Identifiers must to be symbols.
@@ -195,7 +199,7 @@ TOKEN-REGION denotes the region of the token that the hat
 indicates.
 
 If COLOR or SHAPE is nil or unspecified, the default color or
-shape will be used. "
+shape will be used."
   (unless color (setq color 'default))
   (unless shape (setq shape 'default))
   (make-hatty--hat
@@ -239,7 +243,7 @@ Done before hat reallocation is made."
   (setq hatty--next-styles '()))
 
 (defun hatty--select-hat-character (characters)
-  "Return the character with highest priorities style from CHARACTERS."
+  "Return the character with highest style priority of CHARACTERS."
   (car (seq-sort-by #'hatty--next-style-index #'< characters)))
 
 (defun hatty--create-hat (token)
@@ -247,27 +251,26 @@ Done before hat reallocation is made."
 Return the hat if successful, otherwise return nil.
 
 TOKEN is a cons cell of the bounds of the token."
-  (let* ((characters
-          (thread-last
-            (buffer-substring (car token) (cdr token))
-            string-to-list
-            seq-uniq))
-         (selected-character
-          (hatty--select-hat-character characters))
-         (requested-style
-          (hatty--request-style selected-character))
-         (position
-          (cl-loop
-           with position = (car token)
-           until (equal (char-after position) selected-character)
-           do (setq position (1+ position))
-           finally return position)))
-
-    (if requested-style
-        (hatty--make-hat position token
-                         :color (car requested-style)
-                         :shape (cdr requested-style))
-      nil)))
+  (if-let* ((characters
+             (thread-last
+               (buffer-substring (car token) (cdr token))
+               string-to-list
+               seq-uniq
+               ;; Remove control characters.  In ASCII, they are before #x20.
+               (seq-filter (lambda (c) (>= c #x20)))))
+            (selected-character
+             (hatty--select-hat-character characters))
+            (requested-style
+             (hatty--request-style selected-character))
+            (position
+             (cl-loop
+              with position = (car token)
+              until (eq (char-after position) selected-character)
+              do (setq position (1+ position))
+              finally return position)))
+      (hatty--make-hat position token
+                       :color (car requested-style)
+                       :shape (cdr requested-style))))
 
 (defun hatty--get-tokens ()
   "Return bounds of tokens in the visible buffer.

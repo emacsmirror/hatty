@@ -19,11 +19,20 @@ to string together a sequence of actions in a single utterance.  This
 method of indexing positions was inspired by the [[https://github.com/cursorless-dev/cursorless/][cursorless]] project,
 whose hat designs this project reuses.
 
-** Setup
+** Installation
+This package is available on [[https://melpa.org/#/getting-started][MELPA]] as ~hatty~.
+
+*** Manual installation
 Clone this repo and add the following to your configuration:
 
 #+begin_src elisp
   (add-to-list 'load-path "path/to/hatty/directory")
+#+end_src
+
+** Usage
+Add the following to your configuration:
+
+#+begin_src elisp
   (require 'hatty)
   (global-hatty-mode 1)
 #+end_src
@@ -36,8 +45,9 @@ a hat, use ~hatty-locate~.  For example,
 #+end_src
 
 will return the position of the yellow bolt over character "n".
-Similarly, ~hatty-locate-token-region~ returns the region of the token
-that the hat is placed over.
+Similarly, ~hatty-locate-token-region~ returns the region of the
+/token/ that the hat is placed over, generally corresponding to the
+full word.
 
 The available colors and shapes are specified by the variables
 ~hatty-colors~ and ~hatty-shapes~.  The keys in these alists are the
@@ -45,7 +55,7 @@ symbols used to invoke ~hatty-locate~.  The special identifier
 ~default~ denotes the color or shape to use whenever the argument is
 nil or absent.
 
-** Configuring hat colors
+*** Configuring hat colors
 When loading hatty, it will attempt to set the color themes for the
 hats appropriately.  You might want to customize the colors to fit
 your theme.
