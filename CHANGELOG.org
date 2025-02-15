@@ -1,3 +1,6 @@
+* 1.0.0 [2025-02-15 Sat]
+- MELPA release.
+
 * 0.3.2 [2025-01-23 Thu]
 - Fix slow hat allocation for multiply wrapped lines.
 
