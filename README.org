@@ -2,6 +2,14 @@
 An Emacs package for rendering hats over characters, allowing words to
 be indexed quickly from any point in the buffer.
 
+** Screenshots
+*** With dark theme (modus-vivendi)
+[[./images/hatty-dark.png]]
+
+*** With light theme (modus-operandi)
+[[./images/hatty-dark.png]]
+
+** Description
 This package provides a mechanism for building interfaces overcoming a
 core limitation of tools like [[https://github.com/abo-abo/avy][avy]].  With avy, it is necessary to
 perform a command to make the interface for choosing a position

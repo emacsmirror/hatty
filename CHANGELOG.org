@@ -2,6 +2,7 @@
 - Add usage example to README.
 - Avoid throwing an error when a character has no glyph in the current
   font.
+- Add screenshots to README.
 
 * 1.0.0 [2025-02-15 Sat]
 - MELPA release.
