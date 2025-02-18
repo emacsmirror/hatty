@@ -7,7 +7,7 @@ be indexed quickly from any point in the buffer.
 [[./images/hatty-dark.png]]
 
 *** With light theme (modus-operandi)
-[[./images/hatty-dark.png]]
+[[./images/hatty-light.png]]
 
 ** Description
 This package provides a mechanism for building interfaces overcoming a
