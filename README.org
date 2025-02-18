@@ -144,6 +144,9 @@ this case, if the hat is a red bolt, you can jump to it with
   (global-set-key (kbd "C-c b") #'my/hat-bring)
 #+end_src
 
+To see how hatty can be used to build a more complex interface, see
+[[https://github.com/ErikPrantare/cursorfree.el][cursorfree.el]].
+
 *** Configuring hat colors
 When loading hatty, it will attempt to set the color themes for the
 hats appropriately.  You might want to customize the colors to fit
