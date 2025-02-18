@@ -4,6 +4,8 @@
 
 * TODO Handle italicized text
 
+* TODO Break up the svg rendering function
+
 * TODO Handle selection of bold text
 
 * TODO Fix some issues in ascent
