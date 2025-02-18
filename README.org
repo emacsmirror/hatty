@@ -55,6 +55,87 @@ symbols used to invoke ~hatty-locate~.  The special identifier
 ~default~ denotes the color or shape to use whenever the argument is
 nil or absent.
 
+*** Example usage
+The following snippet will define three keyboard commands for jumping,
+copying, and inserting a token as indexed by the keyboard.  After
+entering ~C-c j~, ~C-c c~ or ~C-c b~, Emacs will wait for a key
+sequence referring to a hat.  The sequence is terminated by ~SPC~.
+
+If the hat does not have color and is oval, you will not need to
+specify the color or shape.  In this case, if the word you want to
+jump to has a hat over its "w", enter ~C-c j w SPC~.
+
+If the hat is red, enter the corresponding character from
+~my/color-lookup~ before "w": ~C-c j r w SPC~.  Similarly, if it has
+the bolt shape (but no color), enter ~C-c j z w SPC~.  If you specify
+both color and shape, you do not need to terminate with ~SPC~.  In
+this case, if the hat is a red bolt, you can jump to it with
+~C-c j r z w~.
+
+#+begin_src elisp
+  (defvar my/color-lookup
+    '((?y . yellow)
+      (?r . red)
+      (?b . blue)
+      (?p . pink)
+      (?g . green)))
+
+  (defvar my/shape-lookup
+    '((?z . bolt)
+      (?c . curve)
+      (?v . fox)
+      (?f . frame)
+      (?> . play)
+      (?a . wing)
+      (?o . hole)
+      (?x . ex)
+      (?t . cross)
+      (?i . eye)))
+
+  (defun my/apply-hat-action (f)
+    "Apply F to token of hat read from input."
+    (let ((input '()))
+      (while (and (< (length input) 3) (not (eq (car input) ?\ )))
+        (push (read-char) input))
+
+      (when (eq (car input) ?\ )
+        (setq input (cdr input)))
+      (setq input (reverse input))
+
+      (let ((color nil)
+            (shape nil)
+            (character nil))
+        (while (> (length input) 1)
+          (when (alist-get (car input) my/color-lookup)
+            (setq color (alist-get (car input) my/color-lookup)))
+          (when (alist-get (car input) my/shape-lookup)
+            (setq shape (alist-get (car input) my/shape-lookup)))
+          (pop input))
+        (setq character (car input))
+
+        (funcall f (hatty-locate-token-region character color shape)))))
+
+  (defun my/hat-jump ()
+    (interactive)
+    (my/apply-hat-action (lambda (region)
+                           (goto-char (car region)))))
+
+  (defun my/hat-copy ()
+    (interactive)
+    (my/apply-hat-action (lambda (region)
+                           (copy-region-as-kill (car region) (cdr region)))))
+
+  (defun my/hat-bring ()
+    (interactive)
+    (my/apply-hat-action (lambda (region)
+                           (insert
+                            (buffer-substring-no-properties (car region) (cdr region))))))
+
+  (global-set-key (kbd "C-c j") #'my/hat-jump)
+  (global-set-key (kbd "C-c c") #'my/hat-copy)
+  (global-set-key (kbd "C-c b") #'my/hat-bring)
+#+end_src
+
 *** Configuring hat colors
 When loading hatty, it will attempt to set the color themes for the
 hats appropriately.  You might want to customize the colors to fit
