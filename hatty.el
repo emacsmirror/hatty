@@ -377,93 +377,97 @@ properties."
 (defun hatty--draw-svg-hat (hat)
   "Overlay character of HAT with with image of it having the hat."
 
-  (let* ((position (marker-position (hatty--hat-marker hat)))
-         (text (buffer-substring position (1+ position)))
-         ;; I will pretend that get-char-property yields all the faces
-         ;; used in the deduction of the face properties for display.
-         ;; I will also pretend that anything not a face or list of
-         ;; faces does not contribute to the display.  These
-         ;; assumptions might not be true; Consult Properties with
-         ;; Special Meanings in the emacs manual.
-         (faces (append (let ((face-spec (get-char-property position 'face)))
-                          (cond
-                           ((facep face-spec) (list face-spec))
-                           ((consp face-spec)
-                            ;; Only handle named faces for now
-                            (seq-filter #'facep face-spec))
-                           (t '())))
-                        (list 'default)))
-         (family (face-attribute (car faces) :family nil (cdr faces)))
-         (weight (face-attribute (car faces) :weight nil (cdr faces)))
+  ;; HACK: If the font doesn't have a glyph for a specific character,
+  ;; font-at will return nil.  For now, we just bail out if this
+  ;; occurs.  Should probably be done somewhere else...
+  (when (font-at (marker-position (hatty--hat-marker hat)))
+    (let* ((position (marker-position (hatty--hat-marker hat)))
+           (text (buffer-substring position (1+ position)))
+           ;; I will pretend that get-char-property yields all the faces
+           ;; used in the deduction of the face properties for display.
+           ;; I will also pretend that anything not a face or list of
+           ;; faces does not contribute to the display.  These
+           ;; assumptions might not be true; Consult Properties with
+           ;; Special Meanings in the emacs manual.
+           (faces (append (let ((face-spec (get-char-property position 'face)))
+                            (cond
+                             ((facep face-spec) (list face-spec))
+                             ((consp face-spec)
+                              ;; Only handle named faces for now
+                              (seq-filter #'facep face-spec))
+                             (t '())))
+                          (list 'default)))
+           (family (face-attribute (car faces) :family nil (cdr faces)))
+           (weight (face-attribute (car faces) :weight nil (cdr faces)))
 
-         (font (font-at position))
-         (font-metrics (query-font font))
-         (glyph-metrics (elt (font-get-glyphs font position (1+ position)) 0))
+           (font (font-at position))
+           (font-metrics (query-font font))
+           (glyph-metrics (elt (font-get-glyphs font position (1+ position)) 0))
 
-         (font-size (elt font-metrics 2))
-         (ascent (elt font-metrics 4))
-         (descent (elt font-metrics 5))
-         (char-width (elt glyph-metrics 4))
-         (char-height (+ ascent descent))
-         (raise (round
-                 (* char-height
-                    (hatty--get-raise-display-property position))))
+           (font-size (elt font-metrics 2))
+           (ascent (elt font-metrics 4))
+           (descent (elt font-metrics 5))
+           (char-width (elt glyph-metrics 4))
+           (char-height (+ ascent descent))
+           (raise (round
+                   (* char-height
+                      (hatty--get-raise-display-property position))))
 
-         ;; Should probably look at the final newline for this property
-         (line-height (get-char-property position 'line-height))
-         (default-char-height (frame-char-height))
-         (default-line-height
-          (cond
-           ;; Lines that are wrapped do not profit of the additional
-           ;; line height of the final newline
-           ((not (hatty--hat-on-final-visual-line hat)) default-char-height)
-           ((integerp line-height) (max default-char-height line-height))
-           ((floatp line-height) (* default-char-height line-height))
-           (t default-char-height)))
+           ;; Should probably look at the final newline for this property
+           (line-height (get-char-property position 'line-height))
+           (default-char-height (frame-char-height))
+           (default-line-height
+            (cond
+             ;; Lines that are wrapped do not profit of the additional
+             ;; line height of the final newline
+             ((not (hatty--hat-on-final-visual-line hat)) default-char-height)
+             ((integerp line-height) (max default-char-height line-height))
+             ((floatp line-height) (* default-char-height line-height))
+             (t default-char-height)))
 
-         (svg-height (max default-line-height char-height))
-         (svg-width char-width)
-         (svg (svg-create svg-width svg-height))
+           (svg-height (max default-line-height char-height))
+           (svg-width char-width)
+           (svg (svg-create svg-width svg-height))
 
-         ;; Convert from emacs color to 6 letter svg hexcode.
-         (svg-hat-color
-          (let ((color
-                 (color-values
-                  (alist-get (hatty--hat-color hat) hatty-colors))))
-            (format "#%02X%02X%02X"
-                    (/ (nth 0 color) 256)
-                    (/ (nth 1 color) 256)
-                    (/ (nth 2 color) 256))))
+           ;; Convert from emacs color to 6 letter svg hexcode.
+           (svg-hat-color
+            (let ((color
+                   (color-values
+                    (alist-get (hatty--hat-color hat) hatty-colors))))
+              (format "#%02X%02X%02X"
+                      (/ (nth 0 color) 256)
+                      (/ (nth 1 color) 256)
+                      (/ (nth 2 color) 256))))
 
-         (overlay (make-overlay position (1+ position) nil t nil)))
+           (overlay (make-overlay position (1+ position) nil t nil)))
 
-    (svg-text svg text
-              :stroke-width 0
-              :font-family family
-              :font-size font-size
-              :font-weight weight
-              :x 0
-              :y (- svg-height descent))
+      (svg-text svg text
+                :stroke-width 0
+                :font-family family
+                :font-size font-size
+                :font-weight weight
+                :x 0
+                :y (- svg-height descent))
 
-    (svg-node svg 'path
-              ;; Transformations are applied in reverse order
-              :transform (format "translate(%s,0) scale(%s) translate(%s,0)"
-                                 (/ svg-width 2)
-                                 0.6
-                                 (- 6))
-              :fill svg-hat-color
-              :d (alist-get (hatty--hat-shape hat) hatty-shapes))
+      (svg-node svg 'path
+                ;; Transformations are applied in reverse order
+                :transform (format "translate(%s,0) scale(%s) translate(%s,0)"
+                                   (/ svg-width 2)
+                                   0.6
+                                   (- 6))
+                :fill svg-hat-color
+                :d (alist-get (hatty--hat-shape hat) hatty-shapes))
 
-    (with-silent-modifications
-      (overlay-put overlay
-                   'display
-                   (svg-image svg
-                              :ascent
-                              (ceiling (* 100 (- svg-height descent (- raise)))
-                                       svg-height)
-                              :scale 1.0)))
-    (overlay-put overlay 'hatty t)
-    (overlay-put overlay 'hatty-hat t)))
+      (with-silent-modifications
+        (overlay-put overlay
+                     'display
+                     (svg-image svg
+                                :ascent
+                                (ceiling (* 100 (- svg-height descent (- raise)))
+                                         svg-height)
+                                :scale 1.0)))
+      (overlay-put overlay 'hatty t)
+      (overlay-put overlay 'hatty-hat t))))
 
 (defun hatty--increase-line-height ()
   "Create more space for hats to render in current buffer."
