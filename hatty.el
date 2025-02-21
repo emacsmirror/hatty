@@ -373,7 +373,6 @@ properties."
            (if property (cadr property) 0.0)))
         (_ 0.0)))))
 
-
 (defun hatty--draw-svg-hat (hat)
   "Overlay character of HAT with with image of it having the hat."
 
@@ -382,7 +381,7 @@ properties."
   ;; occurs.  Should probably be done somewhere else...
   (when (font-at (marker-position (hatty--hat-marker hat)))
     (let* ((position (marker-position (hatty--hat-marker hat)))
-           (text (buffer-substring position (1+ position)))
+           (text (buffer-substring-no-properties position (1+ position)))
            ;; I will pretend that get-char-property yields all the faces
            ;; used in the deduction of the face properties for display.
            ;; I will also pretend that anything not a face or list of

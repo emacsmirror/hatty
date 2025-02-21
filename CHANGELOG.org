@@ -1,3 +1,6 @@
+* NEXT
+- Fix hat rendering issue when the text is readonly.
+
 * 1.0.1 [2025-02-18 Tue]
 - Add usage example to README.
 - Avoid throwing an error when a character has no glyph in the current
