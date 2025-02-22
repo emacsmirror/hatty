@@ -136,8 +136,58 @@ The identifier symbol `default' indicates the default ."
 ;; SOFTWARE.
 )
 
+(defvar hatty--color-default-penalty 1
+  "Penalty for colors not in `hatty--color-penalties'")
+
+(defvar hatty--shape-default-penalty 1
+  "Penalty for shapes not in `hatty--shape-penalties'")
+
+(defvar hatty--color-penalties
+  '((default . 0)
+    (yellow . 2)
+    (red . 1)
+    (blue . 1)
+    (pink . 1)
+    (green . 1))
+  "Penalty for using a specific color.
+
+Used in `hatty--penalty' to calculate the penalty for given style.")
+
+(defvar hatty--shape-penalties
+  '((default . 0)
+    (bolt . 1)
+    (curve . 1)
+    (fox . 1)
+    (frame . 1)
+    (play . 1)
+    (wing . 1)
+    (hole . 1)
+    (ex . 1)
+    (cross . 1)
+    (eye . 1))
+    "Penalty for using a specific shape.
+
+Used in `hatty--penalty' to calculate the penalty for given style.")
+
+(defun hatty--penalty (style)
+  "Return penalty for using STYLE.
+
+Hats with lower penalty will have a higher priority for better spots.
+
+Penalties are looked up from `hatty--color-penalties' and
+`hatty--shape-penalties' and summed.  If a color or shape is not found
+in those, `hatty--color-default-penalty' or
+`hatty--shape-default-penalty' is used instead."
+  (+
+   (alist-get (car style)
+              hatty--color-penalties
+              hatty--color-default-penalty)
+   (alist-get (cdr style)
+              hatty--shape-penalties
+              hatty--shape-default-penalty)))
+
 (defvar hatty--hat-styles nil
-  "List of hat styles to choose from.
+  "List of hat styles to choose from, ordered by priority.
 
 This is recalculated at the beginning of ‘hatty-reallocate’ to
 create all combinations from ‘hatty-colors’ and ‘hatty-shapes’")
@@ -493,18 +543,26 @@ properties."
 ;; Declare now, will be set later along the minor mode.
 (defvar hatty-mode)
 
+(defun hatty--compute-styles ()
+  "Return all possible styles in increasing order of penalty.
+
+The penalty is computed using `hatty--penalty'."
+  (let ((styles (cl-loop
+                 for shape in (seq-uniq (mapcar #'car hatty-shapes))
+                 append (cl-loop
+                         for color in (seq-uniq (mapcar #'car hatty-colors))
+                         collect (cons color shape)))))
+    (sort styles (lambda (style1 style2)
+                   (< (hatty--penalty style1)
+                      (hatty--penalty style2))))))
+
 (defun hatty-reallocate ()
   "Reallocate hats."
   (interactive)
   (with-current-buffer (window-buffer)
     (when hatty-mode
-      (setq hatty--hat-styles
-            (cl-loop
-             for shape in (seq-uniq (mapcar #'car hatty-shapes))
-             append (cl-loop
-                     for color in (seq-uniq (mapcar #'car hatty-colors))
-                     collect (cons color shape))))
       (hatty--clear)
+      (setq hatty--hat-styles (hatty--compute-styles))
       (hatty--increase-line-height)
       (hatty--render-hats (hatty--create-hats)))))
 
