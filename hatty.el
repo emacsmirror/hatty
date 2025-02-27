@@ -508,7 +508,8 @@ properties."
                 ;; Transformations are applied in reverse order
                 :transform (format "translate(%s,0) scale(%s) translate(%s,0)"
                                    (/ svg-width 2)
-                                   0.6
+                                   ;; 98 is the default height of the default face
+                                   (* 0.5 (/ (face-attribute 'default :height) 98.0))
                                    (- 6))
                 :fill svg-hat-color
                 :d (alist-get (hatty--hat-shape hat) hatty-shapes))
