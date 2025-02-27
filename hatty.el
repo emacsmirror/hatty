@@ -508,7 +508,7 @@ properties."
                 ;; Transformations are applied in reverse order
                 :transform (format "translate(%s,0) scale(%s) translate(%s,0)"
                                    (/ svg-width 2)
-                                   0.6
+                                   (/ (face-attribute 'default :height) 200.0)
                                    (- 6))
                 :fill svg-hat-color
                 :d (alist-get (hatty--hat-shape hat) hatty-shapes))
