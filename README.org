@@ -9,6 +9,9 @@ be indexed quickly from any point in the buffer.
 *** With light theme (modus-operandi)
 [[./images/hatty-light.png]]
 
+** Video demo
+[[https://youtu.be/iKWEEAKMZq0]]
+
 ** Description
 This package provides a mechanism for building interfaces overcoming a
 core limitation of tools like [[https://github.com/abo-abo/avy][avy]].  With avy, it is necessary to
