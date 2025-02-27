@@ -37,6 +37,14 @@ Clone this repo and add the following to your configuration:
   (add-to-list 'load-path "path/to/hatty/directory")
 #+end_src
 
+** Terminology
+- Hat: The small symbol rendered above a glyph by hatty.
+- Token: The region of the buffer indicated by the hat.  In general,
+  this corresponds to a word or a special character such as
+  punctuation.
+- Style: The appearance of a hat is decided by its color and shape.
+  The combination of a color and shape is called a style.
+
 ** Usage
 Add the following to your configuration:
 
@@ -53,15 +61,20 @@ a hat, use ~hatty-locate~.  For example,
 #+end_src
 
 will return the position of the yellow bolt over character "n".
-Similarly, ~hatty-locate-token-region~ returns the region of the
-/token/ that the hat is placed over, generally corresponding to the
-full word.
+Similarly, ~hatty-locate-token-region~ returns the region of the token
+that the hat is placed over.  Both of these will return positions as
+markers, ensuring stability of the positions across editing
+operations.  See the Emacs lisp manual for more information on
+markers.
 
 The available colors and shapes are specified by the variables
 ~hatty-colors~ and ~hatty-shapes~.  The keys in these alists are the
 symbols used to invoke ~hatty-locate~.  The special identifier
 ~default~ denotes the color or shape to use whenever the argument is
 nil or absent.
+
+If you want to disable special shapes while getting used to hatty, see
+[[*Disabling specific colors and shapes][Disabling specific colors and shapes]].
 
 *** Example usage
 The following snippet will define three keyboard commands for jumping,
@@ -147,15 +160,25 @@ this case, if the hat is a red bolt, you can jump to it with
 To see how hatty can be used to build a more complex interface, see
 [[https://github.com/ErikPrantare/cursorfree.el][cursorfree.el]].
 
-*** Configuring hat colors
-When loading hatty, it will attempt to set the color themes for the
-hats appropriately.  You might want to customize the colors to fit
-your theme.
+*** Customization
+Hatty variables may be customized via the ~hatty~ customization group.
+After doing ~M-x customize RET~, click ~Convenience~ and then ~Hatty~.
+As usual, customization can also be done in your configuration file.
 
-To change the hat colors, customize ~hatty-colors~.  This can be done
-through the customize interface with ~M-x customize-variable RET
-hatty-colors RET~.  Alternatively, you can set it in your
-configuration file.
+**** Style penalties
+If you want a prioritize certain colours or shapes, change the alists
+~hatty-color-penalties~ and ~hatty-shape-penalties~.  The penalty for
+a style is the sum of the color and shape penalty.  Styles with lower
+penalties will be placed closer to the cursor.
+
+The default settings are optimized for voice control, with penalties
+corresponding to the amount of utterances needed to refer to the
+style.
+
+**** Hat colors
+When loading hatty, it will attempt to set the color themes for the
+hats appropriately.  To change the colors to better fit
+your theme, customize ~hatty-colors~.
 
 ~hatty-colors~ should be an association list mapping an identifier
 symbol to a color.  A color can be a hex code like ~"#aa7023"~ or a
@@ -163,6 +186,17 @@ named color like ~"magenta​"~ (~M-x list-colors-display RET~ to see
 available color names).  ~hatty-colors~ may contain or exclude
 arbitrary identifiers and colors, allowing you to remove, add or
 change them to your liking.
+
+**** Disabling specific colors and shapes
+To disable a given colour or shape, remove it from ~hatty-colors~ or
+~hatty-shapes~.
+
+For example, to disable all special shapes, remove all shapes except
+for the default shape.  In Elisp:
+
+#+begin_src elisp
+  (setq hatty-shapes (list (assq 'default hatty-shapes)))
+#+end_src
 
 ** Versioning system
 This project uses [[https://semver.org/][semantic versioning]].  While still on 0.y.z, an

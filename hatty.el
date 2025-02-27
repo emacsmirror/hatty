@@ -4,7 +4,7 @@
 
 ;; Author: Erik Präntare
 ;; Keywords: convenience
-;; Version: 1.0.1
+;; Version: 1.1.0
 ;; Homepage: https://github.com/ErikPrantare/hatty.el
 ;; Package-Requires: ((emacs "26.1"))
 ;; Created: 05 Jul 2024
@@ -96,7 +96,7 @@ The identifier symbol `default' indicates the default color."
     (play . "M12 4.49999L0 9C0 9 3 6.2746 3 4.49999C3 2.72537 0 0 0 0L12 4.49999Z")
     (wing . "M6 0C6 0 7 3 8.5 4.5C10 6 12 7 12 7V9C12 9 8.5 7 6 7C3.5 7 0 9 0 9V7C0 7 2 6 3.5 4.5C5 3 6 0 6 0Z")
     (hole . "M1.5 4.5L0 7H2.5L3.5 9L6 7.5L8.5 9L9.5 7H12L10.5 4.5L12 2H9.5L8.5 0L6 1.5L3.5 0L2.5 2H0Z M6 5.5L4 6.5L3 4.5L4 2.5L6 3.5L8 2.5L9 4.5L8 6.5L6 5.5Z")
-    (ex . "M1.5 4.5L0 7H2.5L3.5 9L6 7.5L8.5 9L9.5 7H12L10.5 4.5L12 2H9.5L8.5 0L6 1.5L3.5 0L2.5 2H0Z M6 5.5L4 6.5L3 4.5L4 2.5L6 3.5L8 2.5L9 4.5L8 6.5L6 5.5Z")
+    (ex . "M9.99997 9C9.99997 9 7.5 6.5 6 6.5C4.5 6.5 2 9 2 9C2 9 0.999999 9 0 9C0 9 2.5 6 2.5 4.5C2.5 3 6.5473e-05 0 6.5473e-05 0C6.5473e-05 0 1 0 2 0C2 0 4.5 2.5 6 2.5C7.5 2.5 9.99997 0 9.99997 0C11 0 12 0 12 0C12 0 9.5 3 9.5 4.5C9.5 6 12 9 12 9C12 9 11 9 9.99997 9Z")
     (cross ."M5.25 0C5.25 0 4.5 1.5 3.5 2.5C2.49483 3.50517 0 3.75 0 3.75V5.25C0 5.25 2.49483 5.49483 3.5 6.5C4.5 7.5 5.25 9 5.25 9H6.75C6.75 9 7.5 7.5 8.5 6.5C9.50517 5.49483 12 5.25 12 5.25V3.75C12 3.75 9.50517 3.50517 8.5 2.5C7.5 1.5 6.75 0 6.75 0H5.25ZM5.75 6.5H6.25C6.25 6.5 6.58435 5.25599 7 5C7.41565 4.74401 8.75 4.75 8.75 4.75V4.25C8.75 4.25 7.41565 4.25599 7 4C6.58435 3.74401 6.25 2.5 6.25 2.5H5.75C5.75 2.5 5.41565 3.74401 5 4C4.58435 4.25599 3.25 4.25 3.25 4.25V4.75C3.25 4.75 4.58435 4.74401 5 5C5.41565 5.25599 5.75 6.5 5.75 6.5Z" )
     (eye . "M12 4L6.5 0H5.5L0 4V5L5.5 9H6.5L12 5V4ZM6 7.5C6 7.5 4.5 6.5 4.5 4.5C4.5 2.5 6.01103 1.5 6 1.5C6 1.5 7.5 2.5 7.5 4.5C7.5 6.5 6 7.5 6 7.5Z"))
   "Alist of shapes used in rendering hats, indexed by identifier.
@@ -136,8 +136,64 @@ The identifier symbol `default' indicates the default ."
 ;; SOFTWARE.
 )
 
+(defcustom hatty-color-default-penalty 1
+  "Penalty for colors not in `hatty-color-penalties'."
+  :type 'number)
+
+(defcustom hatty-shape-default-penalty 1
+  "Penalty for shapes not in `hatty-shape-penalties'."
+  :type 'number
+  :group 'hatty)
+
+(defcustom hatty-color-penalties
+  '((default . 0)
+    (yellow . 2)
+    (red . 1)
+    (blue . 1)
+    (pink . 1)
+    (green . 1))
+  "Penalty for using a specific color.
+
+Used in `hatty--penalty' to calculate the penalty for given style."
+  :type '(alist :key-type symbol :value-type number)
+  :group 'hatty)
+
+(defcustom hatty-shape-penalties
+  '((default . 0)
+    (bolt . 1)
+    (curve . 1)
+    (fox . 1)
+    (frame . 1)
+    (play . 1)
+    (wing . 1)
+    (hole . 1)
+    (ex . 1)
+    (cross . 1)
+    (eye . 1))
+    "Penalty for using a specific shape.
+
+Used in `hatty--penalty' to calculate the penalty for given style."
+    :type '(alist :key-type symbol :value-type number)
+    :group 'hatty)
+
+(defun hatty--penalty (style)
+  "Return penalty for using STYLE.
+
+Hats with lower penalty will have a higher priority for better spots.
+
+Penalties are looked up from `hatty-color-penalties' and
+`hatty-shape-penalties' and summed.  If a color or shape is not found
+in those, `hatty-color-default-penalty' or
+`hatty-shape-default-penalty' is used instead."
+  (+ (alist-get (car style)
+                hatty-color-penalties
+                hatty-color-default-penalty)
+     (alist-get (cdr style)
+                hatty-shape-penalties
+                hatty-shape-default-penalty)))
+
 (defvar hatty--hat-styles nil
-  "List of hat styles to choose from.
+  "List of hat styles to choose from, ordered by priority.
 
 This is recalculated at the beginning of ‘hatty-reallocate’ to
 create all combinations from ‘hatty-colors’ and ‘hatty-shapes’")
@@ -373,7 +429,6 @@ properties."
            (if property (cadr property) 0.0)))
         (_ 0.0)))))
 
-
 (defun hatty--draw-svg-hat (hat)
   "Overlay character of HAT with with image of it having the hat."
 
@@ -382,7 +437,7 @@ properties."
   ;; occurs.  Should probably be done somewhere else...
   (when (font-at (marker-position (hatty--hat-marker hat)))
     (let* ((position (marker-position (hatty--hat-marker hat)))
-           (text (buffer-substring position (1+ position)))
+           (text (buffer-substring-no-properties position (1+ position)))
            ;; I will pretend that get-char-property yields all the faces
            ;; used in the deduction of the face properties for display.
            ;; I will also pretend that anything not a face or list of
@@ -494,18 +549,26 @@ properties."
 ;; Declare now, will be set later along the minor mode.
 (defvar hatty-mode)
 
+(defun hatty--compute-styles ()
+  "Return all possible styles in increasing order of penalty.
+
+The penalty is computed using `hatty--penalty'."
+  (let ((styles (cl-loop
+                 for shape in (seq-uniq (mapcar #'car hatty-shapes))
+                 append (cl-loop
+                         for color in (seq-uniq (mapcar #'car hatty-colors))
+                         collect (cons color shape)))))
+    (sort styles (lambda (style1 style2)
+                   (< (hatty--penalty style1)
+                      (hatty--penalty style2))))))
+
 (defun hatty-reallocate ()
   "Reallocate hats."
   (interactive)
   (with-current-buffer (window-buffer)
     (when hatty-mode
-      (setq hatty--hat-styles
-            (cl-loop
-             for shape in (seq-uniq (mapcar #'car hatty-shapes))
-             append (cl-loop
-                     for color in (seq-uniq (mapcar #'car hatty-colors))
-                     collect (cons color shape))))
       (hatty--clear)
+      (setq hatty--hat-styles (hatty--compute-styles))
       (hatty--increase-line-height)
       (hatty--render-hats (hatty--create-hats)))))
 

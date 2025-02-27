@@ -1,3 +1,8 @@
+* 1.1.0 [2025-02-27 Thu]
+- Fix hat rendering issue when the text is readonly.
+- Add penalty system for prioritizing certain hat styles.
+- Fix "ex" having the wrong shape.
+
 * 1.0.1 [2025-02-18 Tue]
 - Add usage example to README.
 - Avoid throwing an error when a character has no glyph in the current
