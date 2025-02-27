@@ -136,13 +136,16 @@ The identifier symbol `default' indicates the default ."
 ;; SOFTWARE.
 )
 
-(defvar hatty--color-default-penalty 1
-  "Penalty for colors not in `hatty--color-penalties'")
+(defcustom hatty-color-default-penalty 1
+  "Penalty for colors not in `hatty-color-penalties'."
+  :type 'number)
 
-(defvar hatty--shape-default-penalty 1
-  "Penalty for shapes not in `hatty--shape-penalties'")
+(defcustom hatty-shape-default-penalty 1
+  "Penalty for shapes not in `hatty-shape-penalties'."
+  :type 'number
+  :group 'hatty)
 
-(defvar hatty--color-penalties
+(defcustom hatty-color-penalties
   '((default . 0)
     (yellow . 2)
     (red . 1)
@@ -151,9 +154,11 @@ The identifier symbol `default' indicates the default ."
     (green . 1))
   "Penalty for using a specific color.
 
-Used in `hatty--penalty' to calculate the penalty for given style.")
+Used in `hatty--penalty' to calculate the penalty for given style."
+  :type '(alist :key-type symbol :value-type number)
+  :group 'hatty)
 
-(defvar hatty--shape-penalties
+(defcustom hatty-shape-penalties
   '((default . 0)
     (bolt . 1)
     (curve . 1)
@@ -167,24 +172,25 @@ Used in `hatty--penalty' to calculate the penalty for given style.")
     (eye . 1))
     "Penalty for using a specific shape.
 
-Used in `hatty--penalty' to calculate the penalty for given style.")
+Used in `hatty--penalty' to calculate the penalty for given style."
+    :type '(alist :key-type symbol :value-type number)
+    :group 'hatty)
 
 (defun hatty--penalty (style)
   "Return penalty for using STYLE.
 
 Hats with lower penalty will have a higher priority for better spots.
 
-Penalties are looked up from `hatty--color-penalties' and
-`hatty--shape-penalties' and summed.  If a color or shape is not found
-in those, `hatty--color-default-penalty' or
-`hatty--shape-default-penalty' is used instead."
-  (+
-   (alist-get (car style)
-              hatty--color-penalties
-              hatty--color-default-penalty)
-   (alist-get (cdr style)
-              hatty--shape-penalties
-              hatty--shape-default-penalty)))
+Penalties are looked up from `hatty-color-penalties' and
+`hatty-shape-penalties' and summed.  If a color or shape is not found
+in those, `hatty-color-default-penalty' or
+`hatty-shape-default-penalty' is used instead."
+  (+ (alist-get (car style)
+                hatty-color-penalties
+                hatty-color-default-penalty)
+     (alist-get (cdr style)
+                hatty-shape-penalties
+                hatty-shape-default-penalty)))
 
 (defvar hatty--hat-styles nil
   "List of hat styles to choose from, ordered by priority.
