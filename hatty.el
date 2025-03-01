@@ -221,7 +221,16 @@ character itself.
 
 When locating hats, the lookup will be made on the normalized version
 of the characters.  Thus, one character matches another if their
-normalized representations are `equal' to each other.")
+normalized representations are `equal' to each other.
+
+The function should be idempotent, or in other words,
+
+(funcall hatty--normalize-character-function
+         (funcall hatty--normalize-character-function x))
+
+should be `equal' to
+
+(funcall hatty--normalize-character-function x)")
 
 (defun hatty--normalize-character (character)
   "Return normalized version of CHARACTER.
