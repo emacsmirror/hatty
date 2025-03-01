@@ -211,18 +211,32 @@ create all combinations from ‘hatty-colors’ and ‘hatty-shapes’")
 (defvar-local hatty--hats '()
   "All hats located in the current buffer.")
 
+(defvar hatty--normalize-character-function
+  #'downcase
+  "Function for normalizing characters.
+
+The function should take one argument, CHARACTER, and return a
+normalized representation of it.  The representation needs not be a
+character itself.
+
+When locating hats, the lookup will be made on the normalized version
+of the characters.  Thus, one character matches another if their
+normalized representations are `equal' to each other.")
+
 (defun hatty--normalize-character (character)
   "Return normalized version of CHARACTER.
-This function is equivalent to ‘downcase’."
-  (downcase character))
+
+The behavior of this function can be changed by setting
+`hatty--normalize-character-function'."
+  (funcall hatty--normalize-character-function character))
 
 (defun hatty--locate-hat (character &optional color shape)
   "Get  the hat over CHARACTER matching COLOR and SHAPE."
   (setq color (or color 'default))
   (setq shape (or shape 'default))
   (seq-find (lambda (hat) (and (eq color (hatty--hat-color hat))
-                               (eq (hatty--normalize-character character)
-                                   (hatty--hat-character hat))
+                               (equal (hatty--normalize-character character)
+                                      (hatty--hat-character hat))
                                (eq shape (hatty--hat-shape hat))))
             hatty--hats))
 
@@ -329,7 +343,7 @@ TOKEN is a cons cell of the bounds of the token."
                        :shape (cdr requested-style))))
 
 (defvar hatty--tokenize-region-function
-  #'hatty--tokenize-region
+  #'hatty--tokenize-region-default
   "Function to use for tokenizing the contents of the buffer.
 
 The function should take two parameters, BEG and END, and return
@@ -343,7 +357,17 @@ Token boundaries may occur outside BEG and END, but must be
 inside `point-min' and `point-max'.")
 
 (defun hatty--tokenize-region (beg end)
-  "Return token boundaries within BEG and END."
+  "Return token boundaries within BEG and END.
+
+The behavior of this function can be changed by setting
+  `hatty--tokenize-region-function'."  (funcall
+  hatty--tokenize-region-function beg end))
+
+(defun hatty--tokenize-region-default (beg end)
+  "Return token boundaries within BEG and END.
+
+Tokens are delimited by white space.  Non-word characters are regarded
+single tokens."
   (let* (token
          (tokens '())
          (next-token
@@ -446,7 +470,7 @@ properties."
         (_ 0.0)))))
 
 (defun hatty--draw-svg-hat (hat)
-  "Overlay character of HAT with with image of it having the hat."
+  "Overlay character of HAT with image of it having the hat."
 
   ;; HACK: If the font doesn't have a glyph for a specific character,
   ;; font-at will return nil.  For now, we just bail out if this
