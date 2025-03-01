@@ -328,11 +328,23 @@ TOKEN is a cons cell of the bounds of the token."
                        :color (car requested-style)
                        :shape (cdr requested-style))))
 
-(defun hatty--get-tokens ()
-  "Return bounds of tokens in the visible buffer.
-Order tokens by importance."
-  (let* ((previous-point (point))
-         token
+(defvar hatty--tokenize-region-function
+  #'hatty--tokenize-region
+  "Function to use for tokenizing the contents of the buffer.
+
+The function should take two parameters, BEG and END, and return
+a list of token boundaries for tokens occurring within BEG and
+END in the current buffer.
+
+A token boundary is a cons cell of the beginning position and end
+position.
+
+Token boundaries may occur outside BEG and END, but must be
+inside `point-min' and `point-max'.")
+
+(defun hatty--tokenize-region (beg end)
+  "Return token boundaries within BEG and END."
+  (let* (token
          (tokens '())
          (next-token
           (lambda ()
@@ -345,22 +357,26 @@ Order tokens by importance."
                         nil
                       (cons start (point))))))))
     (save-excursion
-      (goto-char (window-start))
-      (while (and (<= (point) (window-end))
+      (goto-char beg)
+      (while (and (<= (point) end)
                   (funcall next-token))
-        (push token tokens))
+        (push token tokens)))
+    tokens))
 
-      ;; TODO: Move to hat assignment algorithm?
-      (setq tokens
-            (seq-filter
-             (lambda (token) (not (or (invisible-p (car token))
-                                      (invisible-p (1- (cdr token))))))
-             tokens))
-
-      (seq-sort-by (lambda (token)
-                       (abs (- previous-point (car token))))
-                     #'<
-                     tokens))))
+(defun hatty--get-tokens ()
+  "Return bounds of tokens in the visible buffer.
+Order tokens by importance."
+  (thread-last
+    (funcall hatty--tokenize-region-function
+             (window-start) (window-end))
+    (seq-filter
+     (lambda (token)
+       (not (or (invisible-p (car token))
+                (invisible-p (1- (cdr token)))))))
+    (seq-sort-by
+     (lambda (token)
+       (abs (- (point) (car token))))
+     #'<)))
 
 (defun hatty--create-hats ()
   "Create hats in the buffer given by `window-buffer'.
