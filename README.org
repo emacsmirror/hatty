@@ -201,6 +201,11 @@ for the default shape.  In Elisp:
   (setq hatty-shapes (list (assq 'default hatty-shapes)))
 #+end_src
 
+** Performance
+If hat rendering freezes Emacs for a significant amount of time, make
+sure Emacs is compiled with rsvg.  People on macOS in particular seem
+to have this issue.
+
 ** Versioning system
 This project uses [[https://semver.org/][semantic versioning]].  While still on 0.y.z, an
 increment of y signals breaking changes.
