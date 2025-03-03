@@ -1,18 +1,36 @@
 * hatty.el
+:PROPERTIES:
+:CUSTOM_ID: hattyel
+:END:
 An Emacs package for rendering hats over characters, allowing words to
 be indexed quickly from any point in the buffer.
 
 ** Screenshots
+:PROPERTIES:
+:CUSTOM_ID: screenshots
+:END:
 *** With dark theme (modus-vivendi)
+:PROPERTIES:
+:CUSTOM_ID: with-dark-theme-modus-vivendi
+:END:
 [[./images/hatty-dark.png]]
 
 *** With light theme (modus-operandi)
+:PROPERTIES:
+:CUSTOM_ID: with-light-theme-modus-operandi
+:END:
 [[./images/hatty-light.png]]
 
 ** Video demo
+:PROPERTIES:
+:CUSTOM_ID: video-demo
+:END:
 [[https://youtu.be/iKWEEAKMZq0]]
 
 ** Description
+:PROPERTIES:
+:CUSTOM_ID: description
+:END:
 This package provides a mechanism for building interfaces overcoming a
 core limitation of tools like [[https://github.com/abo-abo/avy][avy]].  With avy, it is necessary to
 perform a command to make the interface for choosing a position
@@ -30,10 +48,44 @@ to string together a sequence of actions in a single utterance.  This
 method of indexing positions was inspired by the [[https://github.com/cursorless-dev/cursorless/][cursorless]] project,
 whose hat designs this project reuses.
 
+** Contents
+:PROPERTIES:
+:TOC:      :include all
+:CUSTOM_ID: contents
+:END:
+
+:CONTENTS:
+- [[#hattyel][hatty.el]]
+  - [[#screenshots][Screenshots]]
+    - [[#with-dark-theme-modus-vivendi][With dark theme (modus-vivendi)]]
+    - [[#with-light-theme-modus-operandi][With light theme (modus-operandi)]]
+  - [[#video-demo][Video demo]]
+  - [[#description][Description]]
+  - [[#contents][Contents]]
+  - [[#installation][Installation]]
+    - [[#manual-installation][Manual installation]]
+  - [[#terminology][Terminology]]
+  - [[#usage][Usage]]
+    - [[#example-usage][Example usage]]
+    - [[#customization][Customization]]
+      - [[#style-penalties][Style penalties]]
+      - [[#hat-colors][Hat colors]]
+      - [[#disabling-specific-colors-and-shapes][Disabling specific colors and shapes]]
+  - [[#performance][Performance]]
+  - [[#versioning-system][Versioning system]]
+  - [[#running-tests][Running tests]]
+:END:
+
 ** Installation
+:PROPERTIES:
+:CUSTOM_ID: installation
+:END:
 This package is available on [[https://melpa.org/#/getting-started][MELPA]] as ~hatty~.
 
 *** Manual installation
+:PROPERTIES:
+:CUSTOM_ID: manual-installation
+:END:
 Clone this repo and add the following to your configuration:
 
 #+begin_src elisp
@@ -41,6 +93,9 @@ Clone this repo and add the following to your configuration:
 #+end_src
 
 ** Terminology
+:PROPERTIES:
+:CUSTOM_ID: terminology
+:END:
 - Hat: The small symbol rendered above a glyph by hatty.
 - Token: The region of the buffer indicated by the hat.  In general,
   this corresponds to a word or a special character such as
@@ -49,6 +104,9 @@ Clone this repo and add the following to your configuration:
   The combination of a color and shape is called a style.
 
 ** Usage
+:PROPERTIES:
+:CUSTOM_ID: usage
+:END:
 Add the following to your configuration:
 
 #+begin_src elisp
@@ -80,6 +138,9 @@ If you want to disable special shapes while getting used to hatty, see
 [[*Disabling specific colors and shapes][Disabling specific colors and shapes]].
 
 *** Example usage
+:PROPERTIES:
+:CUSTOM_ID: example-usage
+:END:
 The following snippet will define three keyboard commands for jumping,
 copying, and inserting a token as indexed by the keyboard.  After
 entering ~C-c j~, ~C-c c~ or ~C-c b~, Emacs will wait for a key
@@ -164,11 +225,17 @@ To see how hatty can be used to build a more complex interface, see
 [[https://github.com/ErikPrantare/cursorfree.el][cursorfree.el]].
 
 *** Customization
+:PROPERTIES:
+:CUSTOM_ID: customization
+:END:
 Hatty variables may be customized via the ~hatty~ customization group.
 After doing ~M-x customize RET~, click ~Convenience~ and then ~Hatty~.
 As usual, customization can also be done in your configuration file.
 
 **** Style penalties
+:PROPERTIES:
+:CUSTOM_ID: style-penalties
+:END:
 If you want a prioritize certain colours or shapes, change the alists
 ~hatty-color-penalties~ and ~hatty-shape-penalties~.  The penalty for
 a style is the sum of the color and shape penalty.  Styles with lower
@@ -179,6 +246,9 @@ corresponding to the amount of utterances needed to refer to the
 style.
 
 **** Hat colors
+:PROPERTIES:
+:CUSTOM_ID: hat-colors
+:END:
 When loading hatty, it will attempt to set the color themes for the
 hats appropriately.  To change the colors to better fit
 your theme, customize ~hatty-colors~.
@@ -191,6 +261,9 @@ arbitrary identifiers and colors, allowing you to remove, add or
 change them to your liking.
 
 **** Disabling specific colors and shapes
+:PROPERTIES:
+:CUSTOM_ID: disabling-specific-colors-and-shapes
+:END:
 To disable a given colour or shape, remove it from ~hatty-colors~ or
 ~hatty-shapes~.
 
@@ -202,15 +275,24 @@ for the default shape.  In Elisp:
 #+end_src
 
 ** Performance
+:PROPERTIES:
+:CUSTOM_ID: performance
+:END:
 If hat rendering freezes Emacs for a significant amount of time, make
 sure Emacs is compiled with rsvg.  People on macOS in particular seem
 to have this issue.
 
 ** Versioning system
+:PROPERTIES:
+:CUSTOM_ID: versioning-system
+:END:
 This project uses [[https://semver.org/][semantic versioning]].  While still on 0.y.z, an
 increment of y signals breaking changes.
 
 ** Running tests
+:PROPERTIES:
+:CUSTOM_ID: running-tests
+:END:
 #+begin_src sh
   emacs -Q -l hatty.el -l test.el --eval '(ert t)'
 #+end_src
