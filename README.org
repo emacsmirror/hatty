@@ -142,9 +142,9 @@ If you want to disable special shapes while getting used to hatty, see
 :CUSTOM_ID: example-usage
 :END:
 The following snippet will define three keyboard commands for jumping,
-copying, and inserting a token as indexed by the keyboard.  After
-entering ~C-c j~, ~C-c c~ or ~C-c b~, Emacs will wait for a key
-sequence referring to a hat.  The sequence is terminated by ~SPC~.
+copying, and inserting a token as indexed by the hat.  After entering
+~C-c j~, ~C-c c~ or ~C-c b~, Emacs will wait for a key sequence
+referring to a hat.  The sequence is terminated by ~SPC~.
 
 If the hat does not have color and is oval, you will not need to
 specify the color or shape.  In this case, if the word you want to
