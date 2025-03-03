@@ -295,26 +295,20 @@ shape will be used."
 
 (defun hatty--next-style-index (character)
   "Get index of the next style applicable to CHARACTER."
-  (let* ((normalized (hatty--normalize-character character))
-         (entry (assq normalized hatty--next-styles)))
-    (if entry
-        (cdr entry)
-      (add-to-list 'hatty--next-styles (cons normalized 0))
+  (let ((index (alist-get character hatty--next-styles nil nil #'equal)))
+    (if index
+        index
+      (add-to-list 'hatty--next-styles (cons character 0))
       0)))
 
 (defun hatty--request-style (character)
   "Get the next applicable style of CHARACTER.
 Return nil if none is applicable."
-  (let* ((normalized (hatty--normalize-character character))
-        (entry (assq normalized hatty--next-styles)))
-    (unless entry
-      (add-to-list 'hatty--next-styles (cons normalized 0))
-      (setq entry (car hatty--next-styles)))
-    (let ((index (cdr entry)))
-      (if (>= index (length hatty--hat-styles))
-          nil
-        (setf (cdr entry) (1+ index))
-        (elt hatty--hat-styles index)))))
+  (let ((index (hatty--next-style-index character)))
+    (if (>= index (length hatty--hat-styles))
+        nil
+      (setf (cdr (assoc character hatty--next-styles)) (1+ index))
+      (elt hatty--hat-styles index))))
 
 (defun hatty--reset-styles ()
   "Clear ‘hatty--next-styles’.
@@ -334,22 +328,22 @@ TOKEN is a cons cell of the bounds of the token."
              (thread-last
                (buffer-substring (car token) (cdr token))
                string-to-list
+               (mapcar #'hatty--normalize-character)
                seq-uniq
                ;; Remove control characters.  In ASCII, they are before #x20.
                (seq-filter (lambda (c) (>= c #x20)))))
             (selected-character
              (hatty--select-hat-character characters))
             (requested-style
-             (hatty--request-style selected-character))
-            (position
-             (cl-loop
-              with position = (car token)
-              until (eq (char-after position) selected-character)
-              do (setq position (1+ position))
-              finally return position)))
-      (hatty--make-hat position token
-                       :color (car requested-style)
-                       :shape (cdr requested-style))))
+             (hatty--request-style selected-character)))
+      (save-excursion
+        (goto-char (car token))
+        (while (not (equal (hatty--normalize-character (char-after))
+                           selected-character))
+          (forward-char))
+        (hatty--make-hat (point) token
+                         :color (car requested-style)
+                         :shape (cdr requested-style)))))
 
 (defvar hatty--tokenize-region-function
   #'hatty--tokenize-region-default
