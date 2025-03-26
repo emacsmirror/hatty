@@ -614,9 +614,9 @@ The penalty is computed using `hatty--penalty'."
   (interactive)
   (hatty--reset-styles)
   (dolist (window (window-list-1 nil t 'visible))
-    (with-selected-window window
-      (with-current-buffer (window-buffer window)
-        (when hatty-mode
+    (with-current-buffer (window-buffer window)
+      (when (and hatty-mode (not (input-pending-p)))
+        (with-selected-window window
           (hatty--clear)
           (hatty--increase-line-height)
           (hatty--render-hats (hatty--create-hats)))))))
