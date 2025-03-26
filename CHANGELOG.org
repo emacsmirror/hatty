@@ -1,3 +1,7 @@
+* NEXT
+- Allocate hats uniquely across windows.  Location functions now
+  searches in all visible windows.
+
 * 1.2.0 [2025-02-28 Fri]
 - Scale hat sizes according to default face height.
 

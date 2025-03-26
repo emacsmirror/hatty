@@ -247,7 +247,11 @@ The behavior of this function can be changed by setting
                                (equal (hatty--normalize-character character)
                                       (hatty--hat-character hat))
                                (eq shape (hatty--hat-shape hat))))
-            hatty--hats))
+            (apply #'append
+                   (mapcar (lambda (window)
+                             (with-current-buffer (window-buffer window)
+                               hatty--hats))
+                           (window-list-1 nil t 'visible)))))
 
 (defun hatty-locate (character &optional color shape)
   "Get position of the hat over CHARACTER matching COLOR and SHAPE.
@@ -273,12 +277,12 @@ shape will be used."
 
 (cl-defun hatty--make-hat (position token-region &key color shape)
   "Create a hat at POSITION with color COLOR and shape SHAPE.
+Associate the hat with the buffer given by `window-buffer'.
 
-TOKEN-REGION denotes the region of the token that the hat
-indicates.
+TOKEN-REGION denotes the region of the token that the hat indicates.
 
-If COLOR or SHAPE is nil or unspecified, the default color or
-shape will be used."
+If COLOR or SHAPE is nil or unspecified, the default color or shape
+will be used."
   (unless color (setq color 'default))
   (unless shape (setq shape 'default))
   (make-hatty--hat
@@ -311,8 +315,9 @@ Return nil if none is applicable."
       (elt hatty--hat-styles index))))
 
 (defun hatty--reset-styles ()
-  "Clear ‘hatty--next-styles’.
+  "Free up all styles for usage.
 Done before hat reallocation is made."
+  (setq hatty--hat-styles (hatty--compute-styles))
   (setq hatty--next-styles '()))
 
 (defun hatty--select-hat-character (characters)
@@ -409,8 +414,7 @@ Order tokens by importance."
   "Create hats in the buffer given by `window-buffer'.
 Set `hatty--hats' to the created hats and return them.
 
-Tokens are queried from `hatty--get-tokens'"
-  (hatty--reset-styles)
+Tokens are queried from `hatty--get-tokens'."
   (setq hatty--hats
         (with-current-buffer (window-buffer)
           (let ((tokens (hatty--get-tokens)))
@@ -608,15 +612,17 @@ The penalty is computed using `hatty--penalty'."
 (defun hatty-reallocate ()
   "Reallocate hats."
   (interactive)
-  (with-current-buffer (window-buffer)
-    (when hatty-mode
-      (hatty--clear)
-      (setq hatty--hat-styles (hatty--compute-styles))
-      (hatty--increase-line-height)
-      (hatty--render-hats (hatty--create-hats)))))
+  (hatty--reset-styles)
+  (dolist (window (window-list-1 nil t 'visible))
+    (with-selected-window window
+      (with-current-buffer (window-buffer window)
+        (when hatty-mode
+          (hatty--clear)
+          (hatty--increase-line-height)
+          (hatty--render-hats (hatty--create-hats)))))))
 
 (defun hatty--clear ()
-  "Clean up all resources of hatty.
+  "Clean up all resources of hatty in the current buffer.
 
 This should restore the buffer state as it was before hatty was enabled."
   (remove-overlays nil nil 'hatty t)
