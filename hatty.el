@@ -251,7 +251,7 @@ The behavior of this function can be changed by setting
                    (mapcar (lambda (window)
                              (with-current-buffer (window-buffer window)
                                hatty--hats))
-                           (window-list-1 nil t 'visible)))))
+                           (window-list-1 nil nil 'visible)))))
 
 (defun hatty-locate (character &optional color shape)
   "Get position of the hat over CHARACTER matching COLOR and SHAPE.
@@ -613,13 +613,16 @@ The penalty is computed using `hatty--penalty'."
   "Reallocate hats."
   (interactive)
   (hatty--reset-styles)
-  (dolist (window (window-list-1 nil t 'visible))
-    (with-current-buffer (window-buffer window)
-      (when (and hatty-mode (not (input-pending-p)))
-        (with-selected-window window
-          (hatty--clear)
-          (hatty--increase-line-height)
-          (hatty--render-hats (hatty--create-hats)))))))
+  (let ((visited-buffers '())) ; Avoid reallocating same buffer in different windows
+    (dolist (window (window-list-1 nil nil 'visible))
+      (with-current-buffer (window-buffer window)
+        (when (and hatty-mode (not (member (current-buffer) visited-buffers)))
+          (push (current-buffer) visited-buffers)
+          (with-selected-window window
+            (hatty--clear)
+            (hatty--increase-line-height)
+            (hatty--render-hats (hatty--create-hats)))
+          (redisplay))))))
 
 (defun hatty--clear ()
   "Clean up all resources of hatty in the current buffer.
