@@ -569,7 +569,7 @@ properties."
                                          svg-height)
                                 :scale 1.0)))
       (overlay-put overlay 'hatty t)
-      (overlay-put overlay 'hatty-hat t))))
+      (overlay-put overlay 'hatty-hat hat))))
 
 (defun hatty--increase-line-height ()
   "Create more space for hats to render in current buffer."
