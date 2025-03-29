@@ -294,61 +294,66 @@ will be used."
                   (set-marker (make-marker) (car token-region))
                   (set-marker (make-marker) (cdr token-region)))))
 
-(defvar hatty--next-styles '()
-  "Alist mapping characters to index of next free style.")
+(defvar hatty--free-styles '()
+  "Alist mapping characters to list of free styles.")
 
-(defun hatty--next-style-index (character)
-  "Get index of the next style applicable to CHARACTER."
-  (let ((index (alist-get character hatty--next-styles nil nil #'equal)))
-    (if index
-        index
-      (add-to-list 'hatty--next-styles (cons character 0))
-      0)))
+(defun hatty--materialize-free-styles (character)
+  "Create free style list for CHARACTER if not already present."
+  (unless (alist-get character hatty--free-styles nil nil #'equal)
+    (push (cons character
+                (copy-sequence hatty--hat-styles))
+          hatty--free-styles)))
 
-(defun hatty--request-style (character)
-  "Get the next applicable style of CHARACTER.
-Return nil if none is applicable."
-  (let ((index (hatty--next-style-index character)))
-    (if (>= index (length hatty--hat-styles))
-        nil
-      (setf (cdr (assoc character hatty--next-styles)) (1+ index))
-      (elt hatty--hat-styles index))))
+(defun hatty--next-style (character)
+  "Get the next style applicable to CHARACTER."
+  (hatty--materialize-free-styles character)
+  (car (alist-get character hatty--free-styles nil nil #'equal)))
+
+(defun hatty--claim-style (character style)
+  "Mark STYLE for CHARACTER as taken."
+  (hatty--materialize-free-styles character)
+  (setf (alist-get character hatty--free-styles nil nil #'equal)
+        (delete style (alist-get character hatty--free-styles nil nil #'equal))))
+
+(defun hatty--next-style-penalty (character)
+  "Get penalty of the next style applicable to CHARACTER."
+  (hatty--penalty (hatty--next-style character)))
 
 (defun hatty--reset-styles ()
   "Free up all styles for usage.
 Done before hat reallocation is made."
   (setq hatty--hat-styles (hatty--compute-styles))
-  (setq hatty--next-styles '()))
+  (setq hatty--free-styles '()))
 
 (defun hatty--select-hat-character (characters)
   "Return the character with highest style priority of CHARACTERS."
-  (car (seq-sort-by #'hatty--next-style-index #'< characters)))
+  (car (seq-sort-by #'hatty--next-style-penalty #'< characters)))
 
 (defun hatty--create-hat (token)
   "Create a hat for TOKEN.
 Return the hat if successful, otherwise return nil.
 
 TOKEN is a cons cell of the bounds of the token."
-  (if-let* ((characters
-             (thread-last
-               (buffer-substring (car token) (cdr token))
-               string-to-list
-               (mapcar #'hatty--normalize-character)
-               seq-uniq
-               ;; Remove control characters.  In ASCII, they are before #x20.
-               (seq-filter (lambda (c) (>= c #x20)))))
-            (selected-character
-             (hatty--select-hat-character characters))
-            (requested-style
-             (hatty--request-style selected-character)))
-      (save-excursion
-        (goto-char (car token))
-        (while (not (equal (hatty--normalize-character (char-after))
-                           selected-character))
-          (forward-char))
-        (hatty--make-hat (point) token
-                         :color (car requested-style)
-                         :shape (cdr requested-style)))))
+  (when-let* ((characters
+               (thread-last
+                 (buffer-substring (car token) (cdr token))
+                 string-to-list
+                 (mapcar #'hatty--normalize-character)
+                 seq-uniq
+                 ;; Remove control characters.  In ASCII, they are before #x20.
+                 (seq-filter (lambda (c) (>= c #x20)))))
+              (selected-character
+               (hatty--select-hat-character characters))
+              (style (hatty--next-style selected-character)))
+    (hatty--claim-style selected-character style)
+    (save-excursion
+      (goto-char (car token))
+      (while (not (equal (hatty--normalize-character (char-after))
+                         selected-character))
+        (forward-char))
+      (hatty--make-hat (point) token
+                       :color (car style)
+                       :shape (cdr style)))))
 
 (defvar hatty--tokenize-region-function
   #'hatty--tokenize-region-default
@@ -621,8 +626,7 @@ The penalty is computed using `hatty--penalty'."
           (with-selected-window window
             (hatty--clear)
             (hatty--increase-line-height)
-            (hatty--render-hats (hatty--create-hats)))
-          (redisplay))))))
+            (hatty--render-hats (hatty--create-hats))))))))
 
 (defun hatty--clear ()
   "Clean up all resources of hatty in the current buffer.
