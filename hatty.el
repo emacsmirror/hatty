@@ -221,14 +221,14 @@ character itself.
 
 When locating hats, the lookup will be made on the normalized version
 of the characters.  Thus, one character matches another if their
-normalized representations are `equal' to each other.
+normalized representations are `eq' to each other.
 
 The function should be idempotent, or in other words,
 
 (funcall hatty--normalize-character-function
          (funcall hatty--normalize-character-function x))
 
-should be `equal' to
+should be `eq' to
 
 (funcall hatty--normalize-character-function x)")
 
@@ -244,8 +244,8 @@ The behavior of this function can be changed by setting
   (setq color (or color 'default))
   (setq shape (or shape 'default))
   (seq-find (lambda (hat) (and (eq color (hatty--hat-color hat))
-                               (equal (hatty--normalize-character character)
-                                      (hatty--hat-character hat))
+                               (eq (hatty--normalize-character character)
+                                   (hatty--hat-character hat))
                                (eq shape (hatty--hat-shape hat))))
             (apply #'append
                    (mapcar (lambda (window)
@@ -299,7 +299,7 @@ will be used."
 
 (defun hatty--materialize-free-styles (character)
   "Create free style list for CHARACTER if not already present."
-  (unless (alist-get character hatty--free-styles nil nil #'equal)
+  (unless (alist-get character hatty--free-styles)
     (push (cons character
                 (copy-sequence hatty--hat-styles))
           hatty--free-styles)))
@@ -307,13 +307,18 @@ will be used."
 (defun hatty--next-style (character)
   "Get the next style applicable to CHARACTER."
   (hatty--materialize-free-styles character)
-  (car (alist-get character hatty--free-styles nil nil #'equal)))
+  (car (alist-get character hatty--free-styles)))
 
 (defun hatty--claim-style (character style)
   "Mark STYLE for CHARACTER as taken."
   (hatty--materialize-free-styles character)
-  (setf (alist-get character hatty--free-styles nil nil #'equal)
-        (delete style (alist-get character hatty--free-styles nil nil #'equal))))
+  (setf (alist-get character hatty--free-styles)
+        (delete style (alist-get character hatty--free-styles))))
+
+(defun hatty--style-free-p (character style)
+  "Return non-nil if STYLE is free for CHARACTER."
+  (hatty--materialize-free-styles character)
+  (member style (alist-get character hatty--free-styles)))
 
 (defun hatty--next-style-penalty (character)
   "Get penalty of the next style applicable to CHARACTER."
@@ -339,21 +344,37 @@ TOKEN is a cons cell of the bounds of the token."
                  (buffer-substring (car token) (cdr token))
                  string-to-list
                  (mapcar #'hatty--normalize-character)
-                 seq-uniq
+                 delete-dups
                  ;; Remove control characters.  In ASCII, they are before #x20.
                  (seq-filter (lambda (c) (>= c #x20)))))
               (selected-character
                (hatty--select-hat-character characters))
               (style (hatty--next-style selected-character)))
-    (hatty--claim-style selected-character style)
-    (save-excursion
-      (goto-char (car token))
-      (while (not (equal (hatty--normalize-character (char-after))
-                         selected-character))
-        (forward-char))
-      (hatty--make-hat (point) token
-                       :color (car style)
-                       :shape (cdr style)))))
+    (let* ((overlays-in-token (overlays-in (car token) (cdr token)))
+           (hats-in-token (delq nil (mapcar (lambda (overlay)
+                                              (overlay-get overlay 'hatty-hat))
+                                            overlays-in-token)))
+           (previous-hat (car hats-in-token))
+           (previous-style (when previous-hat
+                             (cons (hatty--hat-color previous-hat)
+                                   (hatty--hat-shape previous-hat)))))
+      (when (and previous-hat
+                 (hatty--style-free-p (hatty--hat-character previous-hat)
+                                      previous-style)
+                 (<= (hatty--penalty previous-style)
+                     (hatty--penalty style)))
+        (setq style (cons (hatty--hat-color previous-hat)
+                          (hatty--hat-shape previous-hat)))
+        (setq selected-character (hatty--hat-character previous-hat)))
+      (hatty--claim-style selected-character style)
+      (save-excursion
+        (goto-char (car token))
+        (while (not (eq (hatty--normalize-character (char-after))
+                        selected-character))
+          (forward-char))
+        (hatty--make-hat (point) token
+                         :color (car style)
+                         :shape (cdr style))))))
 
 (defvar hatty--tokenize-region-function
   #'hatty--tokenize-region-default
@@ -416,56 +437,51 @@ Order tokens by importance."
      #'<)))
 
 (defun hatty--create-hats ()
-  "Create hats in the buffer given by `window-buffer'.
-Set `hatty--hats' to the created hats and return them.
+  "Create and return hats in the buffer given by `window-buffer'.
 
 Tokens are queried from `hatty--get-tokens'."
-  (setq hatty--hats
-        (with-current-buffer (window-buffer)
-          (let ((tokens (hatty--get-tokens)))
-            (seq-filter
-             #'identity
-             (seq-map #'hatty--create-hat tokens)))))
+  (let (hats)
+    (setq hats
+          (with-current-buffer (window-buffer)
+            (let ((tokens (hatty--get-tokens)))
+              (delq nil (seq-map #'hatty--create-hat tokens)))))
 
-  ;; To determine whether a hat is on the last visual line of the
-  ;; logical line, we want to do it in one pass for all hats to
-  ;; minimize the amount of visual line movements performed.  This is
-  ;; because visual line movements functions are slow, but needed to
-  ;; determine whether we are on the last visual line.  We need to
-  ;; determine this to correctly determine the line height of the
-  ;; visual line later (in hatty--draw-svg-hat).
+    ;; To determine whether a hat is on the last visual line of the
+    ;; logical line, we want to do it in one pass for all hats to
+    ;; minimize the amount of visual line movements performed.  This is
+    ;; because visual line movements functions are slow, but needed to
+    ;; determine whether we are on the last visual line.  We need to
+    ;; determine this to correctly determine the line height of the
+    ;; visual line later (in hatty--draw-svg-hat).
 
-  ;; First, we sort the hats in order of occurrence.
-  (setq hatty--hats
-        (seq-sort (lambda (h1 h2) (< (hatty--hat-marker h1) (hatty--hat-marker h2)))
-                  hatty--hats))
+    ;; First, we sort the hats in order of occurrence.
+    (setq hats (seq-sort-by #'hatty--hat-marker #'< hats))
+    ;; Truncated lines are not handled as of now.
+    (unless truncate-lines
+      (save-excursion
+        (goto-char (window-start))
+        (end-of-line)
+        (let ((worklist hats))
+          (while worklist
+            (let (last-visual-begin
+                  last-visual-end)
+              (end-of-line)
+              (setq last-visual-end (point))
+              (beginning-of-visual-line)
+              (setq last-visual-begin (point))
+              ;; Mark all hats that occur before the last visual line...
+              (while (and worklist
+                          (< (hatty--hat-marker (car worklist)) last-visual-begin))
+                (setf (hatty--hat-on-final-visual-line (car worklist)) nil)
+                (pop worklist))
+              ;; ... and all hats within it.
+              (while (and worklist
+                          (< (hatty--hat-marker (car worklist)) last-visual-end))
+                (setf (hatty--hat-on-final-visual-line (car worklist)) t)
+                (pop worklist)))
+            (vertical-motion 1)))))
 
-  ;; Truncated lines are not handled as of now.
-  (unless truncate-lines
-    (save-excursion
-      (goto-char (window-start))
-      (end-of-line)
-      (let ((worklist hatty--hats))
-        (while worklist
-          (let (last-visual-begin
-                last-visual-end)
-            (end-of-line)
-            (setq last-visual-end (point))
-            (beginning-of-visual-line)
-            (setq last-visual-begin (point))
-            ;; Mark all hats that occur before the last visual line...
-            (while (and worklist
-                        (< (hatty--hat-marker (car worklist)) last-visual-begin))
-              (setf (hatty--hat-on-final-visual-line (car worklist)) nil)
-              (pop worklist))
-            ;; ... and all hats within it.
-            (while (and worklist
-                        (< (hatty--hat-marker (car worklist)) last-visual-end))
-              (setf (hatty--hat-on-final-visual-line (car worklist)) t)
-              (pop worklist)))
-          (vertical-motion 1)))))
-
-  hatty--hats)
+    hats))
 
 (defun hatty--get-raise-display-property (position)
   "Get value of the `raise' display property at POSITION.
@@ -624,9 +640,13 @@ The penalty is computed using `hatty--penalty'."
         (when (and hatty-mode (not (member (current-buffer) visited-buffers)))
           (push (current-buffer) visited-buffers)
           (with-selected-window window
-            (hatty--clear)
-            (hatty--increase-line-height)
-            (hatty--render-hats (hatty--create-hats))))))))
+            (let ((hats (hatty--create-hats)))
+              ;; Clear /after/ creating hats.  The old hats are
+              ;; required for hat stability.
+              (hatty--clear)
+              (setq hatty--hats hats)
+              (hatty--increase-line-height)
+              (hatty--render-hats hats))))))))
 
 (defun hatty--clear ()
   "Clean up all resources of hatty in the current buffer.
