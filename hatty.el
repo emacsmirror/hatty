@@ -497,8 +497,8 @@ properties."
            (if property (cadr property) 0.0)))
         (_ 0.0)))))
 
-(defun hatty--draw-svg-hat (hat)
-  "Overlay character of HAT with image of it having the hat."
+(defun hatty--svg-parameters (hat)
+  "Return plist of parameters required to make SVG hat at POSITION."
 
   ;; HACK: If the font doesn't have a glyph for a specific character,
   ;; font-at will return nil.  For now, we just bail out if this
@@ -520,8 +520,8 @@ properties."
                               (seq-filter #'facep face-spec))
                              (t '())))
                           (list 'default)))
-           (family (face-attribute (car faces) :family nil (cdr faces)))
-           (weight (face-attribute (car faces) :weight nil (cdr faces)))
+           (font-family (face-attribute (car faces) :family nil (cdr faces)))
+           (font-weight (face-attribute (car faces) :weight nil (cdr faces)))
 
            (font (font-at position))
            (font-metrics (query-font font))
@@ -560,15 +560,46 @@ properties."
               (format "#%02X%02X%02X"
                       (/ (nth 0 color) 256)
                       (/ (nth 1 color) 256)
-                      (/ (nth 2 color) 256))))
+                      (/ (nth 2 color) 256)))))
 
-           (overlay (make-overlay position (1+ position) nil t nil)))
+      (list
+       :svg-hat-color svg-hat-color
+       :svg-width svg-width
+       :svg-height svg-height
+       :text text
+       :font-family font-family
+       :font-size font-size
+       :font-weight font-weight
+       :descent descent
+       :raise raise
+       :path (alist-get (hatty--hat-shape hat) hatty-shapes)
+       :svg-hat-color svg-hat-color))))
 
-      (svg-text svg text
+(defun hatty--draw-svg-hat (hat)
+  "Overlay character of HAT with image of it having the hat."
+
+  (when-let ((parameters (hatty--svg-parameters hat)))
+    (let* ((svg-hat-color (plist-get parameters :svg-hat-color))
+          (svg-width (plist-get parameters :svg-width))
+          (svg-height (plist-get parameters :svg-height))
+          (text (plist-get parameters :text))
+          (font-family (plist-get parameters :font-family))
+          (font-size (plist-get parameters :font-size))
+          (font-weight (plist-get parameters :font-weight))
+          (descent (plist-get parameters :descent))
+          (raise (plist-get parameters :raise))
+          (path (plist-get parameters :path))
+          (svg-hat-color (plist-get parameters :svg-hat-color))
+          (svg (svg-create svg-width svg-height))
+          (overlay (make-overlay (marker-position (hatty--hat-marker hat))
+                                 (1+ (marker-position (hatty--hat-marker hat)))
+                                 nil t nil)))
+
+      (svg-text svg (plist-get parameters :text)
                 :stroke-width 0
-                :font-family family
+                :font-family font-family
                 :font-size font-size
-                :font-weight weight
+                :font-weight font-weight
                 :x 0
                 :y (- svg-height descent))
 
