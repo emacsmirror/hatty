@@ -275,21 +275,19 @@ shape will be used."
   (hatty--hat-token-region
    (hatty--locate-hat character color shape)))
 
-(cl-defun hatty--make-hat (position token-region &key color shape)
-  "Create a hat at POSITION with color COLOR and shape SHAPE.
+(cl-defun hatty--make-hat (position token-region style)
+  "Create a hat at POSITION with STYLE.
 Associate the hat with the buffer given by `window-buffer'.
 
 TOKEN-REGION denotes the region of the token that the hat indicates.
 
 If COLOR or SHAPE is nil or unspecified, the default color or shape
 will be used."
-  (unless color (setq color 'default))
-  (unless shape (setq shape 'default))
   (make-hatty--hat
    :character (hatty--normalize-character (char-after position))
-   :color color
+   :color (car style)
    :marker (set-marker (make-marker) position (window-buffer))
-   :shape shape
+   :shape (cdr style)
    :token-region (cons
                   (set-marker (make-marker) (car token-region))
                   (set-marker (make-marker) (cdr token-region)))))
@@ -363,18 +361,15 @@ TOKEN is a cons cell of the bounds of the token."
                                       previous-style)
                  (<= (hatty--penalty previous-style)
                      (hatty--penalty style)))
-        (setq style (cons (hatty--hat-color previous-hat)
-                          (hatty--hat-shape previous-hat)))
-        (setq selected-character (hatty--hat-character previous-hat)))
+        (setq selected-character (hatty--hat-character previous-hat))
+        (setq style previous-style))
       (hatty--claim-style selected-character style)
       (save-excursion
         (goto-char (car token))
         (while (not (eq (hatty--normalize-character (char-after))
                         selected-character))
           (forward-char))
-        (hatty--make-hat (point) token
-                         :color (car style)
-                         :shape (cdr style))))))
+        (hatty--make-hat (point) token style)))))
 
 (defvar hatty--tokenize-region-function
   #'hatty--tokenize-region-default
