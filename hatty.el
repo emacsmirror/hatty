@@ -299,7 +299,7 @@ will be used."
 
 (defun hatty--materialize-free-styles (character)
   "Create free style list for CHARACTER if not already present."
-  (unless (alist-get character hatty--free-styles)
+  (when (eq (alist-get character hatty--free-styles 'not-present) 'not-present)
     (push (cons character
                 (copy-sequence hatty--hat-styles))
           hatty--free-styles)))
