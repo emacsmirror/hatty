@@ -225,12 +225,12 @@ normalized representations are `eq' to each other.
 
 The function should be idempotent, or in other words,
 
-(funcall hatty--normalize-character-function
-         (funcall hatty--normalize-character-function x))
+  (funcall hatty--normalize-character-function
+           (funcall hatty--normalize-character-function x))}
 
 should be `eq' to
 
-(funcall hatty--normalize-character-function x)")
+  (funcall hatty--normalize-character-function x)")
 
 (defun hatty--normalize-character (character)
   "Return normalized version of CHARACTER.
@@ -360,7 +360,8 @@ TOKEN is a cons cell of the bounds of the token."
                  (hatty--style-free-p (hatty--hat-character previous-hat)
                                       previous-style)
                  (<= (hatty--penalty previous-style)
-                     (hatty--penalty style)))
+                     (hatty--penalty style))
+                 (member (hatty--hat-character previous-hat) characters))
         (setq selected-character (hatty--hat-character previous-hat))
         (setq style previous-style))
       (hatty--claim-style selected-character style)
@@ -492,8 +493,12 @@ properties."
            (if property (cadr property) 0.0)))
         (_ 0.0)))))
 
+(defvar hatty--svg-cache
+  (make-hash-table
+   :test 'equal))
+
 (defun hatty--svg-parameters (hat)
-  "Return plist of parameters required to make SVG hat at POSITION."
+  "Return plist of parameters required to make SVG for HAT."
 
   ;; HACK: If the font doesn't have a glyph for a specific character,
   ;; font-at will return nil.  For now, we just bail out if this
@@ -545,7 +550,6 @@ properties."
 
            (svg-height (max default-line-height char-height))
            (svg-width char-width)
-           (svg (svg-create svg-width svg-height))
 
            ;; Convert from emacs color to 6 letter svg hexcode.
            (svg-hat-color
@@ -570,53 +574,62 @@ properties."
        :path (alist-get (hatty--hat-shape hat) hatty-shapes)
        :svg-hat-color svg-hat-color))))
 
+(defun hatty--compute-svg (parameters)
+  "Return SVG image of a hat over a glyph according to PARAMETERS."
+  (let* ((svg-hat-color (plist-get parameters :svg-hat-color))
+         (svg-width (plist-get parameters :svg-width))
+         (svg-height (plist-get parameters :svg-height))
+         (text (plist-get parameters :text))
+         (font-family (plist-get parameters :font-family))
+         (font-size (plist-get parameters :font-size))
+         (font-weight (plist-get parameters :font-weight))
+         (descent (plist-get parameters :descent))
+         (raise (plist-get parameters :raise))
+         (path (plist-get parameters :path))
+         (svg (svg-create svg-width svg-height)))
+
+    (svg-text svg text
+              :stroke-width 0
+              :font-family font-family
+              :font-size font-size
+              :font-weight font-weight
+              :x 0
+              :y (- svg-height descent))
+
+    (svg-node svg 'path
+              ;; Transformations are applied in reverse order
+              :transform (format "translate(%s,0) scale(%s) translate(%s,0)"
+                                 (/ svg-width 2)
+                                 (/ (face-attribute 'default :height) 200.0)
+                                 (- 6))
+              :fill svg-hat-color
+              :d path)
+
+    (svg-image svg
+               :ascent
+               (ceiling (* 100 (- svg-height descent (- raise)))
+                        svg-height)
+               :scale 1.0)))
+
+(defun hatty--get-svg (parameters)
+  ;; Caching without eviction
+  (let ((cached (gethash parameters hatty--svg-cache)))
+    (unless cached
+      (setq cached (hatty--compute-svg parameters))
+      (puthash parameters cached hatty--svg-cache))
+    cached))
+
 (defun hatty--draw-svg-hat (hat)
   "Overlay character of HAT with image of it having the hat."
-
-  (when-let ((parameters (hatty--svg-parameters hat)))
-    (let* ((svg-hat-color (plist-get parameters :svg-hat-color))
-          (svg-width (plist-get parameters :svg-width))
-          (svg-height (plist-get parameters :svg-height))
-          (text (plist-get parameters :text))
-          (font-family (plist-get parameters :font-family))
-          (font-size (plist-get parameters :font-size))
-          (font-weight (plist-get parameters :font-weight))
-          (descent (plist-get parameters :descent))
-          (raise (plist-get parameters :raise))
-          (path (plist-get parameters :path))
-          (svg-hat-color (plist-get parameters :svg-hat-color))
-          (svg (svg-create svg-width svg-height))
-          (overlay (make-overlay (marker-position (hatty--hat-marker hat))
-                                 (1+ (marker-position (hatty--hat-marker hat)))
-                                 nil t nil)))
-
-      (svg-text svg (plist-get parameters :text)
-                :stroke-width 0
-                :font-family font-family
-                :font-size font-size
-                :font-weight font-weight
-                :x 0
-                :y (- svg-height descent))
-
-      (svg-node svg 'path
-                ;; Transformations are applied in reverse order
-                :transform (format "translate(%s,0) scale(%s) translate(%s,0)"
-                                   (/ svg-width 2)
-                                   (/ (face-attribute 'default :height) 200.0)
-                                   (- 6))
-                :fill svg-hat-color
-                :d (alist-get (hatty--hat-shape hat) hatty-shapes))
-
-      (with-silent-modifications
-        (overlay-put overlay
-                     'display
-                     (svg-image svg
-                                :ascent
-                                (ceiling (* 100 (- svg-height descent (- raise)))
-                                         svg-height)
-                                :scale 1.0)))
-      (overlay-put overlay 'hatty t)
-      (overlay-put overlay 'hatty-hat hat))))
+  (when-let* ((parameters (hatty--svg-parameters hat))
+              (svg (hatty--get-svg parameters))
+              (overlay (make-overlay (marker-position (hatty--hat-marker hat))
+                                     (1+ (marker-position (hatty--hat-marker hat)))
+                                     nil t nil)))
+    (with-silent-modifications
+      (overlay-put overlay 'display svg))
+    (overlay-put overlay 'hatty t)
+    (overlay-put overlay 'hatty-hat hat)))
 
 (defun hatty--increase-line-height ()
   "Create more space for hats to render in current buffer."
@@ -672,7 +685,9 @@ The penalty is computed using `hatty--penalty'."
               (hatty--clear)
               (setq hatty--hats hats)
               (hatty--increase-line-height)
-              (hatty--render-hats hats))))))))
+              (hatty--render-hats hats)))))))
+  (when (> (hash-table-size hatty--svg-cache) 10000)
+    (clrhash hatty--svg-cache)))
 
 (defun hatty--clear ()
   "Clean up all resources of hatty in the current buffer.
