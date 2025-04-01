@@ -275,7 +275,7 @@ shape will be used."
   (hatty--hat-token-region
    (hatty--locate-hat character color shape)))
 
-(cl-defun hatty--make-hat (position token-region style)
+(defun hatty--make-hat (position token-region style)
   "Create a hat at POSITION with STYLE.
 Associate the hat with the buffer given by `window-buffer'.
 
@@ -350,7 +350,7 @@ TOKEN is a cons cell of the bounds of the token."
               (style (hatty--next-style selected-character)))
     (let* ((overlays-in-token (overlays-in (car token) (cdr token)))
            (hats-in-token (delq nil (mapcar (lambda (overlay)
-                                              (overlay-get overlay 'hatty-hat))
+                                              (overlay-get overlay 'hatty--hat))
                                             overlays-in-token)))
            (previous-hat (car hats-in-token))
            (previous-style (when previous-hat
@@ -612,7 +612,6 @@ properties."
                :scale 1.0)))
 
 (defun hatty--get-svg (parameters)
-  ;; Caching without eviction
   (let ((cached (gethash parameters hatty--svg-cache)))
     (unless cached
       (setq cached (hatty--compute-svg parameters))
@@ -626,31 +625,47 @@ properties."
               (overlay (make-overlay (marker-position (hatty--hat-marker hat))
                                      (1+ (marker-position (hatty--hat-marker hat)))
                                      nil t nil)))
+    (remove-overlays (car (hatty--hat-token-region hat))
+                     (cdr (hatty--hat-token-region hat))
+                     'hatty--old t)
     (with-silent-modifications
       (overlay-put overlay 'display svg))
     (overlay-put overlay 'hatty t)
-    (overlay-put overlay 'hatty-hat hat)))
+    (overlay-put overlay 'hatty--hat-p t)
+    (overlay-put overlay 'hatty--hat hat)))
 
 (defun hatty--increase-line-height ()
   "Create more space for hats to render in current buffer."
-  (remove-overlays (point-min) (point-max) 'hatty-modified-line-height t)
+  (remove-overlays nil nil 'hatty--modified-line-height t)
   (let ((modify-line-height (make-overlay (point-min) (point-max) nil nil t)))
     (overlay-put modify-line-height 'line-height  1.2)
     (overlay-put modify-line-height 'evaporate nil)
     (overlay-put modify-line-height 'hatty t)
-    (overlay-put modify-line-height 'hatty-modified-line-height t)))
+    (overlay-put modify-line-height 'hatty--modified-line-height t)))
 
 (defun hatty--render-hats (hats)
   "Display HATS."
   (dolist (hat hats)
-    (let ((display-property
-           (get-char-property (hatty--hat-marker hat) 'display)))
-      ;; Do not render if there already is a string or image display
-      ;; property
-      (unless (or (stringp display-property)
-                  (and (consp display-property)
-                       (or (eq (car display-property) 'image)
-                           (assq 'image display-property))))
+    ;; We must avoid rendering if there is already a display property
+    ;; replacing the glyph that we want to override.
+    (let* ((position (hatty--hat-marker hat))
+           (display-properties
+            (cons (get-text-property position 'display)
+                  (delq nil (mapcar (lambda (overlay)
+                                      ;; We keep around old overlays
+                                      ;; to avoid flickering if
+                                      ;; rendering gets interrupted by
+                                      ;; input.  Do not let those
+                                      ;; overlays block rendering.
+                                      (unless (overlay-get overlay 'hatty)
+                                        (overlay-get overlay 'display)))
+                                    (overlays-in position (1+ position)))))))
+      (unless (seq-some (lambda (display-property)
+                          (or (stringp display-property)
+                              (and (consp display-property)
+                                   (or (eq (car display-property) 'image)
+                                       (assq 'image display-property)))))
+                        display-properties)
         (hatty--draw-svg-hat hat)))))
 
 ;; Declare now, will be set later along the minor mode.
@@ -673,20 +688,23 @@ The penalty is computed using `hatty--penalty'."
   "Reallocate hats."
   (interactive)
   (hatty--reset-styles)
-  (let ((visited-buffers '())) ; Avoid reallocating same buffer in different windows
-    (dolist (window (window-list-1 nil nil 'visible))
-      (with-current-buffer (window-buffer window)
-        (when (and hatty-mode (not (member (current-buffer) visited-buffers)))
-          (push (current-buffer) visited-buffers)
-          (with-selected-window window
-            (let ((hats (hatty--create-hats)))
-              ;; Clear /after/ creating hats.  The old hats are
-              ;; required for hat stability.
-              (hatty--clear)
-              (setq hatty--hats hats)
+  (while-no-input ; This computation is heavy and gets invoked often.  Do not block input.
+    (redisplay)
+    (let ((visited-buffers '())) ; Avoid reallocating same buffer in different windows.
+      (dolist (window (window-list-1 nil nil 'visible))
+        (with-current-buffer (window-buffer window)
+          (when (and hatty-mode (not (member (current-buffer) visited-buffers)))
+            (push (current-buffer) visited-buffers)
+            (with-selected-window window
+              ;; We wait with removing previous overlays: If the
+              ;; computation gets interrupted by input, removing them
+              ;; first causes flickering.
+              (hatty--mark-old-overlays)
+              (setq hatty--hats (hatty--create-hats))
               (hatty--increase-line-height)
-              (hatty--render-hats hats)))))))
-  (when (> (hash-table-size hatty--svg-cache) 10000)
+              (hatty--render-hats hatty--hats)
+              (hatty--remove-old-overlays)))))))
+  (when (> (hash-table-count hatty--svg-cache) 10000)
     (clrhash hatty--svg-cache)))
 
 (defun hatty--clear ()
@@ -698,6 +716,18 @@ This should restore the buffer state as it was before hatty was enabled."
     (set-marker (hatty--hat-marker hat) nil))
   (setq hatty--hats nil))
 
+(defun hatty--mark-old-overlays ()
+  "Mark each hatty overlay for removal.
+
+Marked overlays may be removed with `hatty--clear-old'."
+  (dolist (overlay (overlays-in (point-min) (point-max)))
+    (when (overlay-get overlay 'hatty)
+      (overlay-put overlay 'hatty--old t))))
+
+(defun hatty--remove-old-overlays ()
+  "Remove each hatty overlay from previous generation."
+  (remove-overlays nil nil 'hatty--old t))
+
 (defvar hatty--hat-reallocate-timer (timer-create))
 ;; Not sure what the best way to disable this whenever hatty-mode is
 ;; disabled in all buffers.  Currently I just let it always run, as
@@ -705,17 +735,18 @@ This should restore the buffer state as it was before hatty was enabled."
 (defvar hatty--hat-reallocate-idle-timer
   (run-with-idle-timer 0.2 t #'hatty-reallocate))
 
-(defun hatty-request-reallocation ()
+(defun hatty-request-reallocation (&optional seconds-delay)
   "Signal that the current buffer will need hat reallocation.
 
 The function will try to avoid rapid consecutive reallocations by
-deferring reallocation by a small amount of time and counselling
+deferring reallocation by SECONDS-DELAY and cancelling
 any previously unperformed reallocations.
 
 To reallocate immediately, use `hatty-reallocate' instead."
+  (setq seconds-delay (or seconds-delay 0.2))
   (cancel-timer hatty--hat-reallocate-timer)
   (setq hatty--hat-reallocate-timer
-        (run-with-timer 0.1 nil #'hatty-reallocate)))
+        (run-with-timer seconds-delay nil #'hatty-reallocate)))
 
 ;;;###autoload
 (define-minor-mode hatty-mode
