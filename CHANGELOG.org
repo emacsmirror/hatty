@@ -1,6 +1,9 @@
 * NEXT
-- Allocate hats uniquely across windows.  Location functions now
-  searches in all visible windows.
+- Hats are now allocated uniquely across windows.  Location functions
+  now search in all visible windows.
+- Improved hat stability: If a token can retain its hat without
+  incurring a larger penalty, it will try to do so.
+- Improved performance and responsiveness.
 
 * 1.2.0 [2025-02-28 Fri]
 - Scale hat sizes according to default face height.

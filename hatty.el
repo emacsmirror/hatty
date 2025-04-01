@@ -745,7 +745,7 @@ deferring reallocation by SECONDS-DELAY and cancelling
 any previously unperformed reallocations.
 
 To reallocate immediately, use `hatty-reallocate' instead."
-  (setq seconds-delay (or seconds-delay 0.2))
+  (setq seconds-delay (or seconds-delay 0.05))
   (cancel-timer hatty--hat-reallocate-timer)
   (setq hatty--hat-reallocate-timer
         (run-with-timer seconds-delay nil #'hatty-reallocate)))
