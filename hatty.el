@@ -690,7 +690,8 @@ The penalty is computed using `hatty--penalty'."
   (hatty--reset-styles)
   (while-no-input ; This computation is heavy and gets invoked often.  Do not block input.
     (redisplay)
-    (let ((visited-buffers '())) ; Avoid reallocating same buffer in different windows.
+    (let ((gc-cons-threshold most-positive-fixnum) ; Wait with gc until we have redisplayed.
+          (visited-buffers '())) ; Avoid reallocating same buffer in different windows.
       (dolist (window (window-list-1 nil nil 'visible))
         (with-current-buffer (window-buffer window)
           (when (and hatty-mode (not (member (current-buffer) visited-buffers)))
@@ -703,7 +704,8 @@ The penalty is computed using `hatty--penalty'."
               (setq hatty--hats (hatty--create-hats))
               (hatty--increase-line-height)
               (hatty--render-hats hatty--hats)
-              (hatty--remove-old-overlays)))))))
+              (hatty--remove-old-overlays)))))
+      (redisplay)))
   (when (> (hash-table-count hatty--svg-cache) 10000)
     (clrhash hatty--svg-cache)))
 
@@ -733,7 +735,7 @@ Marked overlays may be removed with `hatty--clear-old'."
 ;; disabled in all buffers.  Currently I just let it always run, as
 ;; hatty-reallocate bails if it is not enabled anyway.
 (defvar hatty--hat-reallocate-idle-timer
-  (run-with-idle-timer 0.2 t #'hatty-reallocate))
+  (run-with-idle-timer 0.05 t #'hatty-reallocate))
 
 (defun hatty-request-reallocation (&optional seconds-delay)
   "Signal that the current buffer will need hat reallocation.
