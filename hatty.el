@@ -612,11 +612,8 @@ properties."
                :scale 1.0)))
 
 (defun hatty--get-svg (parameters)
-  (let ((cached (gethash parameters hatty--svg-cache)))
-    (unless cached
-      (setq cached (hatty--compute-svg parameters))
-      (puthash parameters cached hatty--svg-cache))
-    cached))
+  (with-memoization (gethash parameters hatty--svg-cache)
+    (hatty--compute-svg parameters)))
 
 (defun hatty--draw-svg-hat (hat)
   "Overlay character of HAT with image of it having the hat."
