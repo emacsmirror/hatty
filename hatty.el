@@ -275,6 +275,19 @@ shape will be used."
   (hatty--hat-token-region
    (hatty--locate-hat character color shape)))
 
+(defun hatty-token-at (&optional position buffer-or-name prefer-after)
+  (setq position (or position (point)))
+  (let ((candidates
+         (thread-last
+           hatty--hats
+           (seq-filter (lambda (hat) (equal (marker-buffer (hatty--hat-marker hat))
+                                            (window-normalize-buffer buffer-or-name))))
+           (seq-map #'hatty--hat-token-region)
+           (seq-filter (lambda (token) (and (<= (car token) position)
+                                            (>= (cdr token) position)))))))
+    (when candidates
+      (seq-first (seq-sort-by #'car (if prefer-after #'> #'<) candidates)))))
+
 (defun hatty--make-hat (position token-region style)
   "Create a hat at POSITION with STYLE.
 Associate the hat with the buffer given by `window-buffer'.
