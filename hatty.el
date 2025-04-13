@@ -457,11 +457,16 @@ Tokens are queried from `hatty--get-tokens'."
       (save-excursion
         (goto-char (window-start))
         (end-of-line)
-        (let ((worklist hats))
+        (let ((worklist hats)
+              ;; HACK: Sometimes the scan got stuck.  Keeping track of
+              ;; maximum position allows us to more directly ensure
+              ;; progress.
+              (maximum-position (point)))
           (while worklist
             (let (last-visual-begin
                   last-visual-end)
               (end-of-line)
+              (setq maximum-position (max maximum-position (point)))
               (setq last-visual-end (point))
               (beginning-of-visual-line)
               (setq last-visual-begin (point))
@@ -475,7 +480,10 @@ Tokens are queried from `hatty--get-tokens'."
                           (< (hatty--hat-marker (car worklist)) last-visual-end))
                 (setf (hatty--hat-on-final-visual-line (car worklist)) t)
                 (pop worklist)))
-            (vertical-motion 1)))))
+            (goto-char maximum-position) ; HACK (cont): This is to
+                                         ; ensure progress.
+            (vertical-motion 1)
+            (setq maximum-position (max (point) maximum-position))))))
 
     hats))
 
