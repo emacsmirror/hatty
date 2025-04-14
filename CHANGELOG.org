@@ -1,3 +1,16 @@
+* 1.3.0 [2025-04-14 Mon]
+- Hats are now allocated uniquely across windows.  Location functions
+  now search in all visible windows.
+- Improved hat stability: If a token can retain its hat without
+  incurring a larger penalty, it will try to do so.
+- Added new function ~hatty-token-at~: Returns the boundaries of the
+  token at a given position.
+- Added ~thing-at-pt~ thing ~hatty-token~.
+- Improved responsiveness.
+- ~hatty-locate~ is now obsolete.
+- ~hatty-locate-token-region~ has been renamed to
+  ~hatty-locate-token~.  The old function is now obsolete.
+
 * 1.2.0 [2025-02-28 Fri]
 - Scale hat sizes according to default face height.
 

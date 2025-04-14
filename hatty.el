@@ -4,9 +4,9 @@
 
 ;; Author: Erik Präntare
 ;; Keywords: convenience
-;; Version: 1.1.0
+;; Version: 1.3.0
 ;; Homepage: https://github.com/ErikPrantare/hatty.el
-;; Package-Requires: ((emacs "26.1"))
+;; Package-Requires: ((emacs "29.1"))
 ;; Created: 05 Jul 2024
 
 ;; hatty.el is free software; you can redistribute it and/or
@@ -30,8 +30,8 @@
 ;; visible portion of the buffer in the current window.
 
 ;; Setup: Call ‘global-hatty-mode’ to start displaying hats.  The
-;; position of a hat may then be queried using the function
-;; ‘hatty-locate’.
+;; token of a hat may then be queried using the function
+;; ‘hatty-locate-token’.
 
 ;;; Code:
 
@@ -211,10 +211,33 @@ create all combinations from ‘hatty-colors’ and ‘hatty-shapes’")
 (defvar-local hatty--hats '()
   "All hats located in the current buffer.")
 
+(defvar hatty--normalize-character-function
+  #'downcase
+  "Function for normalizing characters.
+
+The function should take one argument, CHARACTER, and return a
+normalized representation of it.  The representation needs not be a
+character itself.
+
+When locating hats, the lookup will be made on the normalized version
+of the characters.  Thus, one character matches another if their
+normalized representations are `eq' to each other.
+
+The function should be idempotent, or in other words,
+
+  (funcall hatty--normalize-character-function
+           (funcall hatty--normalize-character-function x))}
+
+should be `eq' to
+
+  (funcall hatty--normalize-character-function x)")
+
 (defun hatty--normalize-character (character)
   "Return normalized version of CHARACTER.
-This function is equivalent to ‘downcase’."
-  (downcase character))
+
+The behavior of this function can be changed by setting
+`hatty--normalize-character-function'."
+  (funcall hatty--normalize-character-function character))
 
 (defun hatty--locate-hat (character &optional color shape)
   "Get  the hat over CHARACTER matching COLOR and SHAPE."
@@ -224,7 +247,11 @@ This function is equivalent to ‘downcase’."
                                (eq (hatty--normalize-character character)
                                    (hatty--hat-character hat))
                                (eq shape (hatty--hat-shape hat))))
-            hatty--hats))
+            (apply #'append
+                   (mapcar (lambda (window)
+                             (with-current-buffer (window-buffer window)
+                               hatty--hats))
+                           (window-list-1 nil nil 'visible)))))
 
 (defun hatty-locate (character &optional color shape)
   "Get position of the hat over CHARACTER matching COLOR and SHAPE.
@@ -237,7 +264,11 @@ shape will be used."
   (hatty--hat-marker
    (hatty--locate-hat character color shape)))
 
-(defun hatty-locate-token-region (character &optional color shape)
+(make-obsolete #'hatty-locate
+               "this will be removed in a future version."
+               "1.3.0")
+
+(defun hatty-locate-token (character &optional color shape)
   "Get token region of the hat over CHARACTER with COLOR and SHAPE.
 
 COLOR and SHAPE should be identifiers as they occur in
@@ -248,91 +279,159 @@ shape will be used."
   (hatty--hat-token-region
    (hatty--locate-hat character color shape)))
 
-(cl-defun hatty--make-hat (position token-region &key color shape)
-  "Create a hat at POSITION with color COLOR and shape SHAPE.
+(define-obsolete-function-alias #'hatty-locate-token-region
+  #'hatty-locate-token "1.3.0")
 
-TOKEN-REGION denotes the region of the token that the hat
-indicates.
+(defun hatty-token-at (&optional position buffer-or-name prefer-after)
+  "Get the token at POSITION.
+If POSITION is nil or not given, get the token at point.
 
-If COLOR or SHAPE is nil or unspecified, the default color or
-shape will be used."
-  (unless color (setq color 'default))
-  (unless shape (setq shape 'default))
+BUFFER-OR-NAME denotes the buffer to look in.  If it is nil or not
+given, but POSITION is a marker associated to a buffer, that buffer is
+used instead.  Otherwise, the current buffer is used.
+
+If position is at the boundary of two tokens, the preceding token is
+preferred unless PREFER-AFTER is non-nil."
+  (setq position (or position (point)))
+  (setq buffer-or-name (or buffer-or-name
+                           (when (markerp position) (marker-buffer position))))
+  (let ((candidates
+         (thread-last
+           hatty--hats
+           (seq-filter (lambda (hat) (equal (marker-buffer (hatty--hat-marker hat))
+                                            (window-normalize-buffer buffer-or-name))))
+           (seq-map #'hatty--hat-token-region)
+           (seq-filter (lambda (token) (and (<= (car token) position)
+                                            (>= (cdr token) position)))))))
+    (when candidates
+      (seq-first (seq-sort-by #'car (if prefer-after #'> #'<) candidates)))))
+
+(put 'hatty-token 'bounds-of-thing-at-point #'hatty-token-at)
+
+(defun hatty--make-hat (position token-region style)
+  "Create a hat at POSITION with STYLE.
+Associate the hat with the buffer given by `window-buffer'.
+
+TOKEN-REGION denotes the region of the token that the hat indicates.
+
+If COLOR or SHAPE is nil or unspecified, the default color or shape
+will be used."
   (make-hatty--hat
    :character (hatty--normalize-character (char-after position))
-   :color color
+   :color (car style)
    :marker (set-marker (make-marker) position (window-buffer))
-   :shape shape
+   :shape (cdr style)
    :token-region (cons
                   (set-marker (make-marker) (car token-region))
                   (set-marker (make-marker) (cdr token-region)))))
 
-(defvar hatty--next-styles '()
-  "Alist mapping characters to index of next free style.")
+(defvar hatty--free-styles '()
+  "Alist mapping characters to list of free styles.")
 
-(defun hatty--next-style-index (character)
-  "Get index of the next style applicable to CHARACTER."
-  (let* ((normalized (hatty--normalize-character character))
-         (entry (assq normalized hatty--next-styles)))
-    (if entry
-        (cdr entry)
-      (add-to-list 'hatty--next-styles (cons normalized 0))
-      0)))
+(defun hatty--materialize-free-styles (character)
+  "Create free style list for CHARACTER if not already present."
+  (when (eq (alist-get character hatty--free-styles 'not-present) 'not-present)
+    (push (cons character
+                (copy-sequence hatty--hat-styles))
+          hatty--free-styles)))
 
-(defun hatty--request-style (character)
-  "Get the next applicable style of CHARACTER.
-Return nil if none is applicable."
-  (let* ((normalized (hatty--normalize-character character))
-        (entry (assq normalized hatty--next-styles)))
-    (unless entry
-      (add-to-list 'hatty--next-styles (cons normalized 0))
-      (setq entry (car hatty--next-styles)))
-    (let ((index (cdr entry)))
-      (if (>= index (length hatty--hat-styles))
-          nil
-        (setf (cdr entry) (1+ index))
-        (elt hatty--hat-styles index)))))
+(defun hatty--next-style (character)
+  "Get the next style applicable to CHARACTER."
+  (hatty--materialize-free-styles character)
+  (car (alist-get character hatty--free-styles)))
+
+(defun hatty--claim-style (character style)
+  "Mark STYLE for CHARACTER as taken."
+  (hatty--materialize-free-styles character)
+  (setf (alist-get character hatty--free-styles)
+        (delete style (alist-get character hatty--free-styles))))
+
+(defun hatty--style-free-p (character style)
+  "Return non-nil if STYLE is free for CHARACTER."
+  (hatty--materialize-free-styles character)
+  (member style (alist-get character hatty--free-styles)))
+
+(defun hatty--next-style-penalty (character)
+  "Get penalty of the next style applicable to CHARACTER."
+  (hatty--penalty (hatty--next-style character)))
 
 (defun hatty--reset-styles ()
-  "Clear ‘hatty--next-styles’.
+  "Free up all styles for usage.
 Done before hat reallocation is made."
-  (setq hatty--next-styles '()))
+  (setq hatty--hat-styles (hatty--compute-styles))
+  (setq hatty--free-styles '()))
 
 (defun hatty--select-hat-character (characters)
   "Return the character with highest style priority of CHARACTERS."
-  (car (seq-sort-by #'hatty--next-style-index #'< characters)))
+  (car (seq-sort-by #'hatty--next-style-penalty #'< characters)))
 
 (defun hatty--create-hat (token)
   "Create a hat for TOKEN.
 Return the hat if successful, otherwise return nil.
 
 TOKEN is a cons cell of the bounds of the token."
-  (if-let* ((characters
-             (thread-last
-               (buffer-substring (car token) (cdr token))
-               string-to-list
-               seq-uniq
-               ;; Remove control characters.  In ASCII, they are before #x20.
-               (seq-filter (lambda (c) (>= c #x20)))))
-            (selected-character
-             (hatty--select-hat-character characters))
-            (requested-style
-             (hatty--request-style selected-character))
-            (position
-             (cl-loop
-              with position = (car token)
-              until (eq (char-after position) selected-character)
-              do (setq position (1+ position))
-              finally return position)))
-      (hatty--make-hat position token
-                       :color (car requested-style)
-                       :shape (cdr requested-style))))
+  (when-let* ((characters
+               (thread-last
+                 (buffer-substring (car token) (cdr token))
+                 string-to-list
+                 (mapcar #'hatty--normalize-character)
+                 delete-dups
+                 ;; Remove control characters.  In ASCII, they are before #x20.
+                 (seq-filter (lambda (c) (>= c #x20)))))
+              (selected-character
+               (hatty--select-hat-character characters))
+              (style (hatty--next-style selected-character)))
+    (let* ((overlays-in-token (overlays-in (car token) (cdr token)))
+           (hats-in-token (delq nil (mapcar (lambda (overlay)
+                                              (overlay-get overlay 'hatty--hat))
+                                            overlays-in-token)))
+           (previous-hat (car hats-in-token))
+           (previous-style (when previous-hat
+                             (cons (hatty--hat-color previous-hat)
+                                   (hatty--hat-shape previous-hat)))))
+      (when (and previous-hat
+                 (hatty--style-free-p (hatty--hat-character previous-hat)
+                                      previous-style)
+                 (<= (hatty--penalty previous-style)
+                     (hatty--penalty style))
+                 (member (hatty--hat-character previous-hat) characters))
+        (setq selected-character (hatty--hat-character previous-hat))
+        (setq style previous-style))
+      (hatty--claim-style selected-character style)
+      (save-excursion
+        (goto-char (car token))
+        (while (not (eq (hatty--normalize-character (char-after))
+                        selected-character))
+          (forward-char))
+        (hatty--make-hat (point) token style)))))
 
-(defun hatty--get-tokens ()
-  "Return bounds of tokens in the visible buffer.
-Order tokens by importance."
-  (let* ((previous-point (point))
-         token
+(defvar hatty--tokenize-region-function
+  #'hatty--tokenize-region-default
+  "Function to use for tokenizing the contents of the buffer.
+
+The function should take two parameters, BEG and END, and return
+a list of token boundaries for tokens occurring within BEG and
+END in the current buffer.
+
+A token boundary is a cons cell of the beginning position and end
+position.
+
+Token boundaries may occur outside BEG and END, but must be
+inside `point-min' and `point-max'.")
+
+(defun hatty--tokenize-region (beg end)
+  "Return token boundaries within BEG and END.
+
+The behavior of this function can be changed by setting
+  `hatty--tokenize-region-function'."  (funcall
+  hatty--tokenize-region-function beg end))
+
+(defun hatty--tokenize-region-default (beg end)
+  "Return token boundaries within BEG and END.
+
+Tokens are delimited by white space.  Non-word characters are regarded
+single tokens."
+  (let* (token
          (tokens '())
          (next-token
           (lambda ()
@@ -345,75 +444,81 @@ Order tokens by importance."
                         nil
                       (cons start (point))))))))
     (save-excursion
-      (goto-char (window-start))
-      (while (and (<= (point) (window-end))
+      (goto-char beg)
+      (while (and (<= (point) end)
                   (funcall next-token))
-        (push token tokens))
+        (push token tokens)))
+    tokens))
 
-      ;; TODO: Move to hat assignment algorithm?
-      (setq tokens
-            (seq-filter
-             (lambda (token) (not (or (invisible-p (car token))
-                                      (invisible-p (1- (cdr token))))))
-             tokens))
-
-      (seq-sort-by (lambda (token)
-                       (abs (- previous-point (car token))))
-                     #'<
-                     tokens))))
+(defun hatty--get-tokens ()
+  "Return bounds of tokens in the visible buffer.
+Order tokens by importance."
+  (thread-last
+    (funcall hatty--tokenize-region-function
+             (window-start) (window-end))
+    (seq-filter
+     (lambda (token)
+       (not (or (invisible-p (car token))
+                (invisible-p (1- (cdr token)))))))
+    (seq-sort-by
+     (lambda (token)
+       (abs (- (point) (car token))))
+     #'<)))
 
 (defun hatty--create-hats ()
-  "Create hats in the buffer given by `window-buffer'.
-Set `hatty--hats' to the created hats and return them.
+  "Create and return hats in the buffer given by `window-buffer'.
 
-Tokens are queried from `hatty--get-tokens'"
-  (hatty--reset-styles)
-  (setq hatty--hats
-        (with-current-buffer (window-buffer)
-          (let ((tokens (hatty--get-tokens)))
-            (seq-filter
-             #'identity
-             (seq-map #'hatty--create-hat tokens)))))
+Tokens are queried from `hatty--get-tokens'."
+  (let (hats)
+    (setq hats
+          (with-current-buffer (window-buffer)
+            (let ((tokens (hatty--get-tokens)))
+              (delq nil (seq-map #'hatty--create-hat tokens)))))
 
-  ;; To determine whether a hat is on the last visual line of the
-  ;; logical line, we want to do it in one pass for all hats to
-  ;; minimize the amount of visual line movements performed.  This is
-  ;; because visual line movements functions are slow, but needed to
-  ;; determine whether we are on the last visual line.  We need to
-  ;; determine this to correctly determine the line height of the
-  ;; visual line later (in hatty--draw-svg-hat).
+    ;; To determine whether a hat is on the last visual line of the
+    ;; logical line, we want to do it in one pass for all hats to
+    ;; minimize the amount of visual line movements performed.  This is
+    ;; because visual line movements functions are slow, but needed to
+    ;; determine whether we are on the last visual line.  We need to
+    ;; determine this to correctly determine the line height of the
+    ;; visual line later (in hatty--draw-svg-hat).
 
-  ;; First, we sort the hats in order of occurrence.
-  (setq hatty--hats
-        (seq-sort (lambda (h1 h2) (< (hatty--hat-marker h1) (hatty--hat-marker h2)))
-                  hatty--hats))
+    ;; First, we sort the hats in order of occurrence.
+    (setq hats (seq-sort-by #'hatty--hat-marker #'< hats))
+    ;; Truncated lines are not handled as of now.
+    (unless truncate-lines
+      (save-excursion
+        (goto-char (window-start))
+        (end-of-line)
+        (let ((worklist hats)
+              ;; HACK: Sometimes the scan got stuck.  Keeping track of
+              ;; maximum position allows us to more directly ensure
+              ;; progress.
+              (maximum-position (point)))
+          (while worklist
+            (let (last-visual-begin
+                  last-visual-end)
+              (end-of-line)
+              (setq maximum-position (max maximum-position (point)))
+              (setq last-visual-end (point))
+              (beginning-of-visual-line)
+              (setq last-visual-begin (point))
+              ;; Mark all hats that occur before the last visual line...
+              (while (and worklist
+                          (< (hatty--hat-marker (car worklist)) last-visual-begin))
+                (setf (hatty--hat-on-final-visual-line (car worklist)) nil)
+                (pop worklist))
+              ;; ... and all hats within it.
+              (while (and worklist
+                          (< (hatty--hat-marker (car worklist)) last-visual-end))
+                (setf (hatty--hat-on-final-visual-line (car worklist)) t)
+                (pop worklist)))
+            (goto-char maximum-position) ; HACK (cont): This is to
+                                         ; ensure progress.
+            (vertical-motion 1)
+            (setq maximum-position (max (point) maximum-position))))))
 
-  ;; Truncated lines are not handled as of now.
-  (unless truncate-lines
-    (save-excursion
-      (goto-char (window-start))
-      (end-of-line)
-      (let ((worklist hatty--hats))
-        (while worklist
-          (let (last-visual-begin
-                last-visual-end)
-            (end-of-line)
-            (setq last-visual-end (point))
-            (beginning-of-visual-line)
-            (setq last-visual-begin (point))
-            ;; Mark all hats that occur before the last visual line...
-            (while (and worklist
-                        (< (hatty--hat-marker (car worklist)) last-visual-begin))
-              (setf (hatty--hat-on-final-visual-line (car worklist)) nil)
-              (pop worklist))
-            ;; ... and all hats within it.
-            (while (and worklist
-                        (< (hatty--hat-marker (car worklist)) last-visual-end))
-              (setf (hatty--hat-on-final-visual-line (car worklist)) t)
-              (pop worklist)))
-          (vertical-motion 1)))))
-
-  hatty--hats)
+    hats))
 
 (defun hatty--get-raise-display-property (position)
   "Get value of the `raise' display property at POSITION.
@@ -429,8 +534,15 @@ properties."
            (if property (cadr property) 0.0)))
         (_ 0.0)))))
 
-(defun hatty--draw-svg-hat (hat)
-  "Overlay character of HAT with with image of it having the hat."
+(defvar hatty--svg-cache
+  (make-hash-table
+   :test 'equal))
+
+(defun hatty--svg-parameters (hat)
+  "Return plist of parameters required to make SVG for HAT.
+
+If no hat could sensibly be rendered for the hat, this function
+returns nil."
 
   ;; HACK: If the font doesn't have a glyph for a specific character,
   ;; font-at will return nil.  For now, we just bail out if this
@@ -452,8 +564,8 @@ properties."
                               (seq-filter #'facep face-spec))
                              (t '())))
                           (list 'default)))
-           (family (face-attribute (car faces) :family nil (cdr faces)))
-           (weight (face-attribute (car faces) :weight nil (cdr faces)))
+           (font-family (face-attribute (car faces) :family nil (cdr faces)))
+           (font-weight (face-attribute (car faces) :weight nil (cdr faces)))
 
            (font (font-at position))
            (font-metrics (query-font font))
@@ -482,7 +594,6 @@ properties."
 
            (svg-height (max default-line-height char-height))
            (svg-width char-width)
-           (svg (svg-create svg-width svg-height))
 
            ;; Convert from emacs color to 6 letter svg hexcode.
            (svg-hat-color
@@ -492,58 +603,115 @@ properties."
               (format "#%02X%02X%02X"
                       (/ (nth 0 color) 256)
                       (/ (nth 1 color) 256)
-                      (/ (nth 2 color) 256))))
+                      (/ (nth 2 color) 256)))))
 
-           (overlay (make-overlay position (1+ position) nil t nil)))
+      (list
+       :svg-hat-color svg-hat-color
+       :svg-width svg-width
+       :svg-height svg-height
+       :text text
+       :font-family font-family
+       :font-size font-size
+       :font-weight font-weight
+       :descent descent
+       :raise raise
+       :path (alist-get (hatty--hat-shape hat) hatty-shapes)
+       :svg-hat-color svg-hat-color))))
 
-      (svg-text svg text
-                :stroke-width 0
-                :font-family family
-                :font-size font-size
-                :font-weight weight
-                :x 0
-                :y (- svg-height descent))
+(defun hatty--compute-svg (parameters)
+  "Return SVG image of a hat over a glyph according to PARAMETERS."
+  (let* ((svg-hat-color (plist-get parameters :svg-hat-color))
+         (svg-width (plist-get parameters :svg-width))
+         (svg-height (plist-get parameters :svg-height))
+         (text (plist-get parameters :text))
+         (font-family (plist-get parameters :font-family))
+         (font-size (plist-get parameters :font-size))
+         (font-weight (plist-get parameters :font-weight))
+         (descent (plist-get parameters :descent))
+         (raise (plist-get parameters :raise))
+         (path (plist-get parameters :path))
+         (svg (svg-create svg-width svg-height)))
 
-      (svg-node svg 'path
-                ;; Transformations are applied in reverse order
-                :transform (format "translate(%s,0) scale(%s) translate(%s,0)"
-                                   (/ svg-width 2)
-                                   (/ (face-attribute 'default :height) 200.0)
-                                   (- 6))
-                :fill svg-hat-color
-                :d (alist-get (hatty--hat-shape hat) hatty-shapes))
+    (svg-text svg text
+              :stroke-width 0
+              :font-family font-family
+              :font-size font-size
+              :font-weight font-weight
+              :x 0
+              :y (- svg-height descent))
 
-      (with-silent-modifications
-        (overlay-put overlay
-                     'display
-                     (svg-image svg
-                                :ascent
-                                (ceiling (* 100 (- svg-height descent (- raise)))
-                                         svg-height)
-                                :scale 1.0)))
-      (overlay-put overlay 'hatty t)
-      (overlay-put overlay 'hatty-hat t))))
+    (svg-node svg 'path
+              ;; Transformations are applied in reverse order
+              :transform (format "translate(%s,0) scale(%s) translate(%s,0)"
+                                 (/ svg-width 2)
+                                 (/ (face-attribute 'default :height) 200.0)
+                                 (- 6))
+              :fill svg-hat-color
+              :d path)
+
+    (svg-image svg
+               :ascent
+               (ceiling (* 100 (- svg-height descent (- raise)))
+                        svg-height)
+               :scale 1.0)))
+
+(defun hatty--get-svg (hat)
+  "Get the SVG for HAT, or nil if no SVG could be sensibly rendered.
+
+Because creating the SVG is computationally heavy, the SVG is cached
+in `hatty--svg-cache' to avoid recomputation of visually equivalent
+SVGs in the future."
+  (when-let ((parameters (hatty--svg-parameters hat)))
+    (with-memoization (gethash parameters hatty--svg-cache)
+      (hatty--compute-svg parameters))))
+
+(defun hatty--draw-svg-hat (hat)
+  "Overlay character of HAT with image of it having the hat."
+  (when-let* ((svg (hatty--get-svg hat))
+              (overlay (make-overlay (marker-position (hatty--hat-marker hat))
+                                     (1+ (marker-position (hatty--hat-marker hat)))
+                                     nil t nil)))
+    (remove-overlays (car (hatty--hat-token-region hat))
+                     (cdr (hatty--hat-token-region hat))
+                     'hatty--old t)
+    (with-silent-modifications
+      (overlay-put overlay 'display svg))
+    (overlay-put overlay 'hatty t)
+    (overlay-put overlay 'hatty--hat-p t)
+    (overlay-put overlay 'hatty--hat hat)))
 
 (defun hatty--increase-line-height ()
-  "Create more space for hats to render in current buffer."
-  (remove-overlays (point-min) (point-max) 'hatty-modified-line-height t)
+  "Add space between lines for hats to render in the current buffer."
+  (remove-overlays nil nil 'hatty--modified-line-height t)
   (let ((modify-line-height (make-overlay (point-min) (point-max) nil nil t)))
     (overlay-put modify-line-height 'line-height  1.2)
     (overlay-put modify-line-height 'evaporate nil)
     (overlay-put modify-line-height 'hatty t)
-    (overlay-put modify-line-height 'hatty-modified-line-height t)))
+    (overlay-put modify-line-height 'hatty--modified-line-height t)))
 
 (defun hatty--render-hats (hats)
   "Display HATS."
   (dolist (hat hats)
-    (let ((display-property
-           (get-char-property (hatty--hat-marker hat) 'display)))
-      ;; Do not render if there already is a string or image display
-      ;; property
-      (unless (or (stringp display-property)
-                  (and (consp display-property)
-                       (or (eq (car display-property) 'image)
-                           (assq 'image display-property))))
+    ;; We must avoid rendering if there is already a display property
+    ;; replacing the glyph that we want to override.
+    (let* ((position (hatty--hat-marker hat))
+           (display-properties
+            (cons (get-text-property position 'display)
+                  (delq nil (mapcar (lambda (overlay)
+                                      ;; We keep around old overlays
+                                      ;; to avoid flickering if
+                                      ;; rendering gets interrupted by
+                                      ;; input.  Do not let those
+                                      ;; overlays block rendering.
+                                      (unless (overlay-get overlay 'hatty)
+                                        (overlay-get overlay 'display)))
+                                    (overlays-in position (1+ position)))))))
+      (unless (seq-some (lambda (display-property)
+                          (or (stringp display-property)
+                              (and (consp display-property)
+                                   (or (eq (car display-property) 'image)
+                                       (assq 'image display-property)))))
+                        display-properties)
         (hatty--draw-svg-hat hat)))))
 
 ;; Declare now, will be set later along the minor mode.
@@ -565,15 +733,30 @@ The penalty is computed using `hatty--penalty'."
 (defun hatty-reallocate ()
   "Reallocate hats."
   (interactive)
-  (with-current-buffer (window-buffer)
-    (when hatty-mode
-      (hatty--clear)
-      (setq hatty--hat-styles (hatty--compute-styles))
-      (hatty--increase-line-height)
-      (hatty--render-hats (hatty--create-hats)))))
+  (hatty--reset-styles)
+  (while-no-input ; This computation is heavy and gets invoked often.  Do not block input.
+    (redisplay)
+    (let ((gc-cons-threshold most-positive-fixnum) ; Wait with gc until we have redisplayed.
+          (visited-buffers '())) ; Avoid reallocating same buffer in different windows.
+      (dolist (window (window-list-1 nil nil 'visible))
+        (with-current-buffer (window-buffer window)
+          (when (and hatty-mode (not (member (current-buffer) visited-buffers)))
+            (push (current-buffer) visited-buffers)
+            (with-selected-window window
+              ;; We wait with removing previous overlays: If the
+              ;; computation gets interrupted by input, removing them
+              ;; first causes flickering.
+              (hatty--mark-old-overlays)
+              (setq hatty--hats (hatty--create-hats))
+              (hatty--increase-line-height)
+              (hatty--render-hats hatty--hats)
+              (hatty--remove-old-overlays)))))
+      (redisplay)))
+  (when (> (hash-table-count hatty--svg-cache) 10000)
+    (clrhash hatty--svg-cache)))
 
 (defun hatty--clear ()
-  "Clean up all resources of hatty.
+  "Clean up all resources of hatty in the current buffer.
 
 This should restore the buffer state as it was before hatty was enabled."
   (remove-overlays nil nil 'hatty t)
@@ -581,24 +764,37 @@ This should restore the buffer state as it was before hatty was enabled."
     (set-marker (hatty--hat-marker hat) nil))
   (setq hatty--hats nil))
 
+(defun hatty--mark-old-overlays ()
+  "Mark each hatty overlay for removal.
+
+Marked overlays may be removed with `hatty--clear-old'."
+  (dolist (overlay (overlays-in (point-min) (point-max)))
+    (when (overlay-get overlay 'hatty)
+      (overlay-put overlay 'hatty--old t))))
+
+(defun hatty--remove-old-overlays ()
+  "Remove each hatty overlay from previous generation."
+  (remove-overlays nil nil 'hatty--old t))
+
 (defvar hatty--hat-reallocate-timer (timer-create))
 ;; Not sure what the best way to disable this whenever hatty-mode is
 ;; disabled in all buffers.  Currently I just let it always run, as
 ;; hatty-reallocate bails if it is not enabled anyway.
 (defvar hatty--hat-reallocate-idle-timer
-  (run-with-idle-timer 0.2 t #'hatty-reallocate))
+  (run-with-idle-timer 0.05 t #'hatty-reallocate))
 
-(defun hatty-request-reallocation ()
+(defun hatty-request-reallocation (&optional seconds-delay)
   "Signal that the current buffer will need hat reallocation.
 
 The function will try to avoid rapid consecutive reallocations by
-deferring reallocation by a small amount of time and counselling
+deferring reallocation by SECONDS-DELAY and cancelling
 any previously unperformed reallocations.
 
 To reallocate immediately, use `hatty-reallocate' instead."
+  (setq seconds-delay (or seconds-delay 0.05))
   (cancel-timer hatty--hat-reallocate-timer)
   (setq hatty--hat-reallocate-timer
-        (run-with-timer 0.1 nil #'hatty-reallocate)))
+        (run-with-timer seconds-delay nil #'hatty-reallocate)))
 
 ;;;###autoload
 (define-minor-mode hatty-mode

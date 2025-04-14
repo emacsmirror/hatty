@@ -1,3 +1,7 @@
+* TODO Before next release
+- Rename hatty-locate-token-region
+- Deprecate/remove hatty-locate
+
 * TODO Shortdoc
 
 * TODO Handle large raise display properties
@@ -15,6 +19,8 @@ Should be visible in the TODO face of this header.
 Because the final is not visible, it does not actually gain any
 additional height.  In [[file:hatty.el::defun hatty--create-hats]], we do
 not cover this case.
+
+* TODO Correctly calculate drawing space for raised characters
 
 * Testing
 ** TODO Get tests running again
