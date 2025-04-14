@@ -6,7 +6,10 @@
 - Added new function ~hatty-token-at~: Returns the boundaries of the
   token at a given position.
 - Added ~thing-at-pt~ thing ~hatty-token~.
-- Improved performance and responsiveness.
+- Improved responsiveness.
+- ~hatty-locate~ is now obsolete.
+- ~hatty-locate-token-region~ has been renamed to
+  ~hatty-locate-token~.  The old function is now obsolete.
 
 * 1.2.0 [2025-02-28 Fri]
 - Scale hat sizes according to default face height.

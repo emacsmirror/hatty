@@ -114,18 +114,16 @@ Add the following to your configuration:
   (global-hatty-mode 1)
 #+end_src
 
-This starts rendering hats in visited buffers.  To get the position of
-a hat, use ~hatty-locate~.  For example,
+This starts rendering hats in visited buffers.  To get the token of a
+hat, use ~hatty-locate-token~.  For example,
 
 #+begin_src elisp
-  (hatty-locate ?n 'yellow 'bolt)
+  (hatty-locate-token ?n 'yellow 'bolt)
 #+end_src
 
-will return the position of the yellow bolt over character "n".
-Similarly, ~hatty-locate-token-region~ returns the region of the token
-that the hat is placed over.  Both of these will return positions as
-markers, ensuring stability of the positions across editing
-operations.  See the Emacs lisp manual for more information on
+will return the token that has a yellow bolt over the character "n".
+The bounds or markers, ensuring stability of the positions across
+editing operations.  See the Emacs lisp manual for more information on
 markers.
 
 The available colors and shapes are specified by the variables
@@ -198,7 +196,7 @@ this case, if the hat is a red bolt, you can jump to it with
           (pop input))
         (setq character (car input))
 
-        (funcall f (hatty-locate-token-region character color shape)))))
+        (funcall f (hatty-locate-token character color shape)))))
 
   (defun my/hat-jump ()
     (interactive)

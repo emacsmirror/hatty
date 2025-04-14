@@ -30,8 +30,8 @@
 ;; visible portion of the buffer in the current window.
 
 ;; Setup: Call ‘global-hatty-mode’ to start displaying hats.  The
-;; position of a hat may then be queried using the function
-;; ‘hatty-locate’.
+;; token of a hat may then be queried using the function
+;; ‘hatty-locate-token’.
 
 ;;; Code:
 
@@ -264,7 +264,11 @@ shape will be used."
   (hatty--hat-marker
    (hatty--locate-hat character color shape)))
 
-(defun hatty-locate-token-region (character &optional color shape)
+(make-obsolete #'hatty-locate
+               "this will be removed in a future version."
+               "1.3.0")
+
+(defun hatty-locate-token (character &optional color shape)
   "Get token region of the hat over CHARACTER with COLOR and SHAPE.
 
 COLOR and SHAPE should be identifiers as they occur in
@@ -274,6 +278,9 @@ If COLOR or SHAPE is nil or unspecified, the default color or
 shape will be used."
   (hatty--hat-token-region
    (hatty--locate-hat character color shape)))
+
+(define-obsolete-function-alias #'hatty-locate-token-region
+  #'hatty-locate-token "1.3.0")
 
 (defun hatty-token-at (&optional position buffer-or-name prefer-after)
   "Get the token at POSITION.
