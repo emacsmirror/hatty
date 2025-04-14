@@ -532,7 +532,10 @@ properties."
    :test 'equal))
 
 (defun hatty--svg-parameters (hat)
-  "Return plist of parameters required to make SVG for HAT."
+  "Return plist of parameters required to make SVG for HAT.
+
+If no hat could sensibly be rendered for the hat, this function
+returns nil."
 
   ;; HACK: If the font doesn't have a glyph for a specific character,
   ;; font-at will return nil.  For now, we just bail out if this
@@ -645,14 +648,19 @@ properties."
                         svg-height)
                :scale 1.0)))
 
-(defun hatty--get-svg (parameters)
-  (with-memoization (gethash parameters hatty--svg-cache)
-    (hatty--compute-svg parameters)))
+(defun hatty--get-svg (hat)
+  "Get the SVG for HAT, or nil if no SVG could be sensibly rendered.
+
+Because creating the SVG is computationally heavy, the SVG is cached
+in `hatty--svg-cache' to avoid recomputation of visually equivalent
+SVGs in the future."
+  (when-let ((parameters (hatty--svg-parameters hat)))
+    (with-memoization (gethash parameters hatty--svg-cache)
+      (hatty--compute-svg parameters))))
 
 (defun hatty--draw-svg-hat (hat)
   "Overlay character of HAT with image of it having the hat."
-  (when-let* ((parameters (hatty--svg-parameters hat))
-              (svg (hatty--get-svg parameters))
+  (when-let* ((svg (hatty--get-svg hat))
               (overlay (make-overlay (marker-position (hatty--hat-marker hat))
                                      (1+ (marker-position (hatty--hat-marker hat)))
                                      nil t nil)))
@@ -666,7 +674,7 @@ properties."
     (overlay-put overlay 'hatty--hat hat)))
 
 (defun hatty--increase-line-height ()
-  "Create more space for hats to render in current buffer."
+  "Add space between lines for hats to render in the current buffer."
   (remove-overlays nil nil 'hatty--modified-line-height t)
   (let ((modify-line-height (make-overlay (point-min) (point-max) nil nil t)))
     (overlay-put modify-line-height 'line-height  1.2)
