@@ -6,7 +6,7 @@
 ;; Keywords: convenience
 ;; Version: 1.3.0
 ;; Homepage: https://github.com/ErikPrantare/hatty.el
-;; Package-Requires: ((emacs "26.1"))
+;; Package-Requires: ((emacs "29.1"))
 ;; Created: 05 Jul 2024
 
 ;; hatty.el is free software; you can redistribute it and/or
