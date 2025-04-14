@@ -276,7 +276,18 @@ shape will be used."
    (hatty--locate-hat character color shape)))
 
 (defun hatty-token-at (&optional position buffer-or-name prefer-after)
+  "Get the token at POSITION.
+If POSITION is nil or not given, get the token at point.
+
+BUFFER-OR-NAME denotes the buffer to look in.  If it is nil or not
+given, but POSITION is a marker associated to a buffer, that buffer is
+used instead.  Otherwise, the current buffer is used.
+
+If position is at the boundary of two tokens, the preceding token is
+preferred unless PREFER-AFTER is non-nil."
   (setq position (or position (point)))
+  (setq buffer-or-name (or buffer-or-name
+                           (when (markerp position) (marker-buffer position))))
   (let ((candidates
          (thread-last
            hatty--hats
@@ -287,6 +298,8 @@ shape will be used."
                                             (>= (cdr token) position)))))))
     (when candidates
       (seq-first (seq-sort-by #'car (if prefer-after #'> #'<) candidates)))))
+
+(put 'hatty-token 'bounds-of-thing-at-point #'hatty-token-at)
 
 (defun hatty--make-hat (position token-region style)
   "Create a hat at POSITION with STYLE.

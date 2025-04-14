@@ -1,3 +1,7 @@
+* TODO Before next release
+- Rename hatty-locate-token-region
+- Deprecate/remove hatty-locate
+
 * TODO Shortdoc
 
 * TODO Handle large raise display properties

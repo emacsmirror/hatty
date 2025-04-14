@@ -5,6 +5,7 @@
   incurring a larger penalty, it will try to do so.
 - Added new function ~hatty-token-at~: Returns the boundaries of the
   token at a given position.
+- Added ~thing-at-pt~ thing ~hatty-token~.
 - Improved performance and responsiveness.
 
 * 1.2.0 [2025-02-28 Fri]
