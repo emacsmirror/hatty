@@ -122,7 +122,7 @@ hat, use ~hatty-locate-token~.  For example,
 #+end_src
 
 will return the token that has a yellow bolt over the character "n".
-The bounds or markers, ensuring stability of the positions across
+The bounds are markers, ensuring stability of the positions across
 editing operations.  See the Emacs lisp manual for more information on
 markers.
 
@@ -133,7 +133,7 @@ symbols used to invoke ~hatty-locate~.  The special identifier
 nil or absent.
 
 If you want to disable special shapes while getting used to hatty, see
-[[*Disabling specific colors and shapes][Disabling specific colors and shapes]].
+[[#disabling-specific-colors-and-shapes][disabling specific colors and shapes]].
 
 *** Example usage
 :PROPERTIES:
