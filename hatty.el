@@ -240,7 +240,7 @@ The behavior of this function can be changed by setting
   (funcall hatty--normalize-character-function character))
 
 (defun hatty--locate-hat (character &optional color shape)
-  "Get  the hat over CHARACTER matching COLOR and SHAPE."
+  "Get the hat over CHARACTER matching COLOR and SHAPE."
   (setq color (or color 'default))
   (setq shape (or shape 'default))
   (seq-find (lambda (hat) (and (eq color (hatty--hat-color hat))
@@ -275,9 +275,12 @@ COLOR and SHAPE should be identifiers as they occur in
 ‘hatty-colors’ and ‘hatty-shapes’.
 
 If COLOR or SHAPE is nil or unspecified, the default color or
-shape will be used."
-  (hatty--hat-token-region
-   (hatty--locate-hat character color shape)))
+shape will be used.
+
+If there is no token corresponding to CHARACTER, COLOR and SHAPE, this
+function returns nil."
+  (when-let ((hat (hatty--locate-hat character color shape)))
+    (hatty--hat-token-region hat)))
 
 (define-obsolete-function-alias #'hatty-locate-token-region
   #'hatty-locate-token "1.3.0")
