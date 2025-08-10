@@ -206,7 +206,7 @@ create all combinations from ‘hatty-colors’ and ‘hatty-shapes’")
   color
   shape
   token-region
-  (on-final-visual-line t))
+  (space-deprived-p t))
 
 (defvar-local hatty--hats '()
   "All hats located in the current buffer.")
@@ -468,59 +468,89 @@ Order tokens by importance."
        (abs (- (point) (car token))))
      #'<)))
 
+(defun hatty--compute-space-deprivation-truncated (hats)
+  "Populate HATS with space deprivation information.
+Assume that long lines are truncated."
+  ;; When a line gets truncated, all hats on it get deprived of space.
+  (setq hats (seq-sort-by #'hatty--hat-marker #'< hats))
+  (save-excursion
+    (goto-char (window-start))
+    (let ((worklist hats))
+      (while worklist
+        (let (visual-end real-end)
+          (end-of-visual-line)
+          (setq visual-end (point))
+          (end-of-line)
+          (setq real-end (point))
+          (forward-line)
+          (when (= visual-end real-end)
+            (while (and worklist
+                        (< (hatty--hat-marker (car worklist)) (point)))
+              (setf (hatty--hat-space-deprived-p (pop worklist)) nil)))
+          (while (and worklist
+                      (< (hatty--hat-marker (car worklist)) (point)))
+            (setf (hatty--hat-space-deprived-p (pop worklist)) t)))))))
+
+(defun hatty--compute-space-deprivation-wrapped (hats)
+  "Populate HATS with space deprivation information.
+Assume that long lines are not truncated."
+  ;; When a line is wrapped, only the final wrapping gets the extra
+  ;; line space (because it contains the newline).  All other lines
+  ;; are space deprived.
+  (setq hats (seq-sort-by #'hatty--hat-marker #'< hats))
+  (save-excursion
+    (goto-char (window-start))
+    (end-of-line)
+    (let ((worklist hats)
+          ;; HACK: Sometimes the scan got stuck.  Keeping track of
+          ;; maximum position allows us to more directly ensure
+          ;; progress.
+          (maximum-position (point)))
+      (while worklist
+        (let (last-visual-begin
+              last-visual-end)
+          (end-of-line)
+          (setq maximum-position (max maximum-position (point)))
+          (setq last-visual-end (point))
+          (beginning-of-visual-line)
+          (setq last-visual-begin (point))
+          ;; Mark all hats that occur before the last visual line...
+          (while (and worklist
+                      (< (hatty--hat-marker (car worklist)) last-visual-begin))
+            (setf (hatty--hat-space-deprived-p (car worklist)) t)
+            (pop worklist))
+          ;; ... and all hats within it.
+          (while (and worklist
+                      (< (hatty--hat-marker (car worklist)) last-visual-end))
+            (setf (hatty--hat-space-deprived-p (car worklist)) nil)
+            (pop worklist)))
+        (goto-char maximum-position)    ; HACK (cont): This is to
+                                        ; ensure progress.
+        (vertical-motion 1)
+        (setq maximum-position (max (point) maximum-position))))))
+
+(defun hatty--compute-space-deprivation (hats)
+  "Populate HATS with space deprivation information.
+
+When the extra line spacing for a hat is not applied visually, the hat
+is deprived of space.  The computation of when this happens is
+expensive, but is made quicker by computing it in bulk with this
+function."
+  ;; The reason that it is expensive is because we need to use visual
+  ;; line movements, which are slower than regular movement
+  ;; operations.
+  (if truncate-lines
+      (hatty--compute-space-deprivation-truncated hats)
+    (hatty--compute-space-deprivation-wrapped hats)))
+
 (defun hatty--create-hats ()
   "Create and return hats in the buffer given by `window-buffer'.
 
 Tokens are queried from `hatty--get-tokens'."
-  (let (hats)
-    (setq hats
-          (with-current-buffer (window-buffer)
-            (let ((tokens (hatty--get-tokens)))
-              (delq nil (seq-map #'hatty--create-hat tokens)))))
-
-    ;; To determine whether a hat is on the last visual line of the
-    ;; logical line, we want to do it in one pass for all hats to
-    ;; minimize the amount of visual line movements performed.  This is
-    ;; because visual line movements functions are slow, but needed to
-    ;; determine whether we are on the last visual line.  We need to
-    ;; determine this to correctly determine the line height of the
-    ;; visual line later (in hatty--draw-svg-hat).
-
-    ;; First, we sort the hats in order of occurrence.
-    (setq hats (seq-sort-by #'hatty--hat-marker #'< hats))
-    ;; Truncated lines are not handled as of now.
-    (unless truncate-lines
-      (save-excursion
-        (goto-char (window-start))
-        (end-of-line)
-        (let ((worklist hats)
-              ;; HACK: Sometimes the scan got stuck.  Keeping track of
-              ;; maximum position allows us to more directly ensure
-              ;; progress.
-              (maximum-position (point)))
-          (while worklist
-            (let (last-visual-begin
-                  last-visual-end)
-              (end-of-line)
-              (setq maximum-position (max maximum-position (point)))
-              (setq last-visual-end (point))
-              (beginning-of-visual-line)
-              (setq last-visual-begin (point))
-              ;; Mark all hats that occur before the last visual line...
-              (while (and worklist
-                          (< (hatty--hat-marker (car worklist)) last-visual-begin))
-                (setf (hatty--hat-on-final-visual-line (car worklist)) nil)
-                (pop worklist))
-              ;; ... and all hats within it.
-              (while (and worklist
-                          (< (hatty--hat-marker (car worklist)) last-visual-end))
-                (setf (hatty--hat-on-final-visual-line (car worklist)) t)
-                (pop worklist)))
-            (goto-char maximum-position) ; HACK (cont): This is to
-                                         ; ensure progress.
-            (vertical-motion 1)
-            (setq maximum-position (max (point) maximum-position))))))
-
+  (let ((hats
+         (with-current-buffer (window-buffer)
+            (seq-keep #'hatty--create-hat (hatty--get-tokens)))))
+    (hatty--compute-space-deprivation hats)
     hats))
 
 (defun hatty--get-raise-display-property (position)
@@ -588,9 +618,7 @@ returns nil."
            (default-char-height (frame-char-height))
            (default-line-height
             (cond
-             ;; Lines that are wrapped do not profit of the additional
-             ;; line height of the final newline
-             ((not (hatty--hat-on-final-visual-line hat)) default-char-height)
+             ((hatty--hat-space-deprived-p hat) default-char-height)
              ((integerp line-height) (max default-char-height line-height))
              ((floatp line-height) (* default-char-height line-height))
              (t default-char-height)))
