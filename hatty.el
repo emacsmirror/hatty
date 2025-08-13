@@ -385,9 +385,9 @@ TOKEN is a cons cell of the bounds of the token."
                (hatty--select-hat-character characters))
               (style (hatty--next-style selected-character)))
     (let* ((overlays-in-token (overlays-in (car token) (cdr token)))
-           (hats-in-token (delq nil (mapcar (lambda (overlay)
-                                              (overlay-get overlay 'hatty--hat))
-                                            overlays-in-token)))
+           (hats-in-token (seq-keep (lambda (overlay)
+                                      (overlay-get overlay 'hatty--hat))
+                                    overlays-in-token))
            (previous-hat (car hats-in-token))
            (previous-style (when previous-hat
                              (cons (hatty--hat-color previous-hat)
@@ -426,8 +426,8 @@ inside `point-min' and `point-max'.")
   "Return token boundaries within BEG and END.
 
 The behavior of this function can be changed by setting
-  `hatty--tokenize-region-function'."  (funcall
-  hatty--tokenize-region-function beg end))
+  `hatty--tokenize-region-function'."
+  (funcall hatty--tokenize-region-function beg end))
 
 (defun hatty--tokenize-region-default (beg end)
   "Return token boundaries within BEG and END.
@@ -483,13 +483,10 @@ Assume that long lines are truncated."
           (end-of-line)
           (setq real-end (point))
           (forward-line)
-          (when (= visual-end real-end)
-            (while (and worklist
-                        (< (hatty--hat-marker (car worklist)) (point)))
-              (setf (hatty--hat-space-deprived-p (pop worklist)) nil)))
           (while (and worklist
                       (< (hatty--hat-marker (car worklist)) (point)))
-            (setf (hatty--hat-space-deprived-p (pop worklist)) t)))))))
+            (setf (hatty--hat-space-deprived-p (pop worklist))
+                  (/= visual-end real-end))))))))
 
 (defun hatty--compute-space-deprivation-wrapped (hats)
   "Populate HATS with space deprivation information.
@@ -728,15 +725,14 @@ SVGs in the future."
     (let* ((position (hatty--hat-marker hat))
            (display-properties
             (cons (get-text-property position 'display)
-                  (delq nil (mapcar (lambda (overlay)
-                                      ;; We keep around old overlays
-                                      ;; to avoid flickering if
-                                      ;; rendering gets interrupted by
-                                      ;; input.  Do not let those
-                                      ;; overlays block rendering.
-                                      (unless (overlay-get overlay 'hatty)
-                                        (overlay-get overlay 'display)))
-                                    (overlays-in position (1+ position)))))))
+                  (seq-keep (lambda (overlay)
+                              ;; We keep around old overlays to avoid
+                              ;; flickering if rendering gets
+                              ;; interrupted by input.  Do not let
+                              ;; those overlays block rendering.
+                              (unless (overlay-get overlay 'hatty)
+                                (overlay-get overlay 'display)))
+                            (overlays-in position (1+ position))))))
       (unless (seq-some (lambda (display-property)
                           (or (stringp display-property)
                               (and (consp display-property)
