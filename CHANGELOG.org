@@ -1,4 +1,6 @@
 * NEXT
+- Added ~hatty-forward-token~ to move point forward by tokens.
+  ~(forward-thing 'hatty-token)~ should now work as expected.
 - Truncated lines do not jitter anymore.
 - ~hatty-locate-token~ now returns nil if no token was found.
 

@@ -285,6 +285,14 @@ function returns nil."
 (define-obsolete-function-alias #'hatty-locate-token-region
   #'hatty-locate-token "1.3.0")
 
+(defun hatty--buffer-hats (&optional buffer-or-name)
+  "Return all hats in BUFFER-OR-NAME.
+
+If BUFFER-OR-NAME is omitted or nil, it defaults to the current buffer."
+  (seq-filter (lambda (hat) (eq (marker-buffer (hatty--hat-marker hat))
+                                (window-normalize-buffer buffer-or-name)))
+              hatty--hats))
+
 (defun hatty-token-at (&optional position buffer-or-name prefer-after)
   "Get the token at POSITION.
 If POSITION is nil or not given, get the token at point.
@@ -300,9 +308,7 @@ preferred unless PREFER-AFTER is non-nil."
                            (when (markerp position) (marker-buffer position))))
   (let ((candidates
          (thread-last
-           hatty--hats
-           (seq-filter (lambda (hat) (equal (marker-buffer (hatty--hat-marker hat))
-                                            (window-normalize-buffer buffer-or-name))))
+           (hatty--buffer-hats buffer-or-name)
            (seq-map #'hatty--hat-token-region)
            (seq-filter (lambda (token) (and (<= (car token) position)
                                             (>= (cdr token) position)))))))
@@ -310,6 +316,28 @@ preferred unless PREFER-AFTER is non-nil."
       (seq-first (seq-sort-by #'car (if prefer-after #'> #'<) candidates)))))
 
 (put 'hatty-token 'bounds-of-thing-at-point #'hatty-token-at)
+
+(defun hatty-forward-token (n)
+  "Move point forward N tokens (backward if N is negative)."
+  (let* ((buffer-hats (hatty--buffer-hats))
+         (backward (< n 0))
+         (hats-to-skip (cond
+                        ((= n 0) nil)
+                        (backward (seq-filter (lambda (hat) (> (point) (car (hatty--hat-token-region hat))))
+                                              buffer-hats))
+                        (t (seq-filter (lambda (hat) (< (point) (cdr (hatty--hat-token-region hat))))
+                                       buffer-hats))))
+         (regions-to-skip (seq-sort-by (if backward #'car #'cdr) (if backward #'> #'<)
+                                       (seq-map #'hatty--hat-token-region hats-to-skip)))
+         (iterations (abs n)))
+    (message "%S" iterations)
+    (while (and regions-to-skip (> iterations 0))
+      (goto-char (if pbackward
+                     (car (pop regions-to-skip))
+                   (cdr (pop regions-to-skip))))
+      (cl-decf iterations))))
+
+(put 'hatty-token 'forward-op #'hatty-forward-token)
 
 (defun hatty--make-hat (position token-region style)
   "Create a hat at POSITION with STYLE.
@@ -837,6 +865,6 @@ To reallocate immediately, use `hatty-reallocate' instead."
 ;;;###autoload
 (define-globalized-minor-mode global-hatty-mode hatty-mode hatty-mode
   :group 'hatty)
-
+-
 (provide 'hatty)
 ;;; hatty.el ends here
