@@ -301,7 +301,7 @@ BUFFER-OR-NAME denotes the buffer to look in.  If it is nil or not
 given, but POSITION is a marker associated to a buffer, that buffer is
 used instead.  Otherwise, the current buffer is used.
 
-If position is at the boundary of two tokens, the preceding token is
+If POSITION is at the boundary of two tokens, the preceding token is
 preferred unless PREFER-AFTER is non-nil."
   (setq position (or position (point)))
   (setq buffer-or-name (or buffer-or-name
