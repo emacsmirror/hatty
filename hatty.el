@@ -332,7 +332,7 @@ preferred unless PREFER-AFTER is non-nil."
          (iterations (abs n)))
     (message "%S" iterations)
     (while (and regions-to-skip (> iterations 0))
-      (goto-char (if pbackward
+      (goto-char (if backward
                      (car (pop regions-to-skip))
                    (cdr (pop regions-to-skip))))
       (cl-decf iterations))))
@@ -865,6 +865,6 @@ To reallocate immediately, use `hatty-reallocate' instead."
 ;;;###autoload
 (define-globalized-minor-mode global-hatty-mode hatty-mode hatty-mode
   :group 'hatty)
--
+
 (provide 'hatty)
 ;;; hatty.el ends here
