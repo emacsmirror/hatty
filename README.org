@@ -68,6 +68,7 @@ whose hat designs this project reuses.
   - [[#usage][Usage]]
     - [[#example-usage][Example usage]]
     - [[#customization][Customization]]
+      - [[#hat-sizes][Hat sizes]]
       - [[#style-penalties][Style penalties]]
       - [[#hat-colors][Hat colors]]
       - [[#disabling-specific-colors-and-shapes][Disabling specific colors and shapes]]
@@ -229,6 +230,13 @@ To see how hatty can be used to build a more complex interface, see
 Hatty variables may be customized via the ~hatty~ customization group.
 After doing ~M-x customize RET~, click ~Convenience~ and then ~Hatty~.
 As usual, customization can also be done in your configuration file.
+
+**** Hat sizes
+:PROPERTIES:
+:CUSTOM_ID: hat-sizes
+:END:
+If you want to change hat sizes, set ~hatty-scale-factor~.  The size
+of the rendered hats are multiplied by this factor.
 
 **** Style penalties
 :PROPERTIES:

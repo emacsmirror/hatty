@@ -1,4 +1,6 @@
 * NEXT
+- New user option ~hatty-scale-factor~.  This option will scale the
+  hat sizes by the given factor.
 - Added ~hatty-forward-token~ to move point forward by tokens.
   ~(forward-thing 'hatty-token)~ should now work as expected.
 - Truncated lines do not jitter anymore.

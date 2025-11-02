@@ -136,9 +136,17 @@ The identifier symbol `default' indicates the default ."
 ;; SOFTWARE.
 )
 
+(defcustom hatty-scale-factor 1.0
+  "Scale factor for hats.
+The size of the hats get multiplied by this number: A factor of 2.0
+will double hat sizes, while a factor of 0.5 will halve them."
+  :type 'number
+  :group 'hatty)
+
 (defcustom hatty-color-default-penalty 1
   "Penalty for colors not in `hatty-color-penalties'."
-  :type 'number)
+  :type 'number
+  :group 'hatty)
 
 (defcustom hatty-shape-default-penalty 1
   "Penalty for shapes not in `hatty-shape-penalties'."
@@ -650,6 +658,8 @@ returns nil."
 
            (svg-height (max default-line-height char-height))
            (svg-width char-width)
+           (scale (* hatty-scale-factor
+                     (/ (face-attribute 'default :height) 200.0)))
 
            ;; Convert from emacs color to 6 letter svg hexcode.
            (svg-hat-color
@@ -672,7 +682,8 @@ returns nil."
        :descent descent
        :raise raise
        :path (alist-get (hatty--hat-shape hat) hatty-shapes)
-       :svg-hat-color svg-hat-color))))
+       :svg-hat-color svg-hat-color
+       :scale scale))))
 
 (defun hatty--compute-svg (parameters)
   "Return SVG image of a hat over a glyph according to PARAMETERS."
@@ -686,6 +697,7 @@ returns nil."
          (descent (plist-get parameters :descent))
          (raise (plist-get parameters :raise))
          (path (plist-get parameters :path))
+         (scale (plist-get parameters :scale))
          (svg (svg-create svg-width svg-height)))
 
     (svg-text svg text
@@ -697,11 +709,11 @@ returns nil."
               :y (- svg-height descent))
 
     (svg-node svg 'path
-              ;; Transformations are applied in reverse order
+              ;; Transformations are applied right-to-left
               :transform (format "translate(%s,0) scale(%s) translate(%s,0)"
                                  (/ svg-width 2)
-                                 (/ (face-attribute 'default :height) 200.0)
-                                 (- 6))
+                                 scale
+                                 (- 5.5))
               :fill svg-hat-color
               :d path)
 
