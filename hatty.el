@@ -640,6 +640,7 @@ returns nil."
            (font-size (elt font-metrics 2))
            (ascent (elt font-metrics 4))
            (descent (elt font-metrics 5))
+           (font-width (elt font-metrics 7))
            (char-width (elt glyph-metrics 4))
            (char-height (+ ascent descent))
            (raise (round
@@ -659,7 +660,10 @@ returns nil."
            (svg-height (max default-line-height char-height))
            (svg-width char-width)
            (scale (* hatty-scale-factor
-                     (/ (face-attribute 'default :height) 200.0)))
+                     ;; Magic number 200.0 was picked to look good.
+                     (/ (face-attribute 'default :height) 200.0)
+                     ;; Magic number 11.0 was font width during above pick.
+                     (/ font-width 11.0)))
 
            ;; Convert from emacs color to 6 letter svg hexcode.
            (svg-hat-color
