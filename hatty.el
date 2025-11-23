@@ -338,7 +338,6 @@ preferred unless PREFER-AFTER is non-nil."
          (regions-to-skip (seq-sort-by (if backward #'car #'cdr) (if backward #'> #'<)
                                        (seq-map #'hatty--hat-token-region hats-to-skip)))
          (iterations (abs n)))
-    (message "%S" iterations)
     (while (and regions-to-skip (> iterations 0))
       (goto-char (if backward
                      (car (pop regions-to-skip))
