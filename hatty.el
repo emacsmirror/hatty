@@ -107,34 +107,34 @@ paths.
 The identifier symbol `default' indicates the default ."
   :type '(alist :key-type symbol :value-type string)
   :group 'hatty
-;; The following notice is included for compliance with the license of
-;; the cursorless project, from which the above hat designs were
-;; copied.  The "bolt" path has been modified to be symmetric.
-;;
-;; MIT License
-;;
-;; Copyright (c) 2021 Brandon Virgil Rule
-;;
-;; Permission is hereby granted, free of charge, to any person
-;; obtaining a copy of this software and associated documentation
-;; files (the "Software"), to deal in the Software without
-;; restriction, including without limitation the rights to use, copy,
-;; modify, merge, publish, distribute, sublicense, and/or sell copies
-;; of the Software, and to permit persons to whom the Software is
-;; furnished to do so, subject to the following conditions:
-;;
-;; The above copyright notice and this permission notice shall be
-;; included in all copies or substantial portions of the Software.
-;;
-;; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-;; EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-;; MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-;; NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
-;; BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
-;; ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-;; CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-;; SOFTWARE.
-)
+  ;; The following notice is included for compliance with the license of
+  ;; the cursorless project, from which the above hat designs were
+  ;; copied.  The "bolt" path has been modified to be symmetric.
+  ;;
+  ;; MIT License
+  ;;
+  ;; Copyright (c) 2021 Brandon Virgil Rule
+  ;;
+  ;; Permission is hereby granted, free of charge, to any person
+  ;; obtaining a copy of this software and associated documentation
+  ;; files (the "Software"), to deal in the Software without
+  ;; restriction, including without limitation the rights to use, copy,
+  ;; modify, merge, publish, distribute, sublicense, and/or sell copies
+  ;; of the Software, and to permit persons to whom the Software is
+  ;; furnished to do so, subject to the following conditions:
+  ;;
+  ;; The above copyright notice and this permission notice shall be
+  ;; included in all copies or substantial portions of the Software.
+  ;;
+  ;; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+  ;; EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+  ;; MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+  ;; NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+  ;; BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+  ;; ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+  ;; CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  ;; SOFTWARE.
+  )
 
 (defcustom hatty-scale-factor 1.0
   "Scale factor for hats.
@@ -178,11 +178,11 @@ Used in `hatty--penalty' to calculate the penalty for given style."
     (ex . 1)
     (cross . 1)
     (eye . 1))
-    "Penalty for using a specific shape.
+  "Penalty for using a specific shape.
 
 Used in `hatty--penalty' to calculate the penalty for given style."
-    :type '(alist :key-type symbol :value-type number)
-    :group 'hatty)
+  :type '(alist :key-type symbol :value-type number)
+  :group 'hatty)
 
 (defun hatty--penalty (style)
   "Return penalty for using STYLE.
@@ -581,7 +581,7 @@ function."
 Tokens are queried from `hatty--get-tokens'."
   (let ((hats
          (with-current-buffer (window-buffer)
-            (seq-keep #'hatty--create-hat (hatty--get-tokens)))))
+           (seq-keep #'hatty--create-hat (hatty--get-tokens)))))
     (hatty--compute-space-deprivation hats)
     hats))
 
