@@ -46,7 +46,10 @@
               (switch-to-buffer (current-buffer))
               (insert "i")
               (setq previous-size (buffer-text-pixel-size))
-              (hatty--draw-svg-hat (hatty--make-hat (point-min)))
+              (hatty--draw-svg-hat
+               (hatty--make-hat (point-min)
+                                (cons (point-min) (point-max))
+                                '(default . default)))
               (setq current-size (buffer-text-pixel-size))))
         (set-face-attribute 'default nil :height previous-height)
         (should (equal previous-size current-size))))))
@@ -60,7 +63,10 @@
       (switch-to-buffer (current-buffer))
       (put-text-property (point-min) (point-max) 'face 'variable-pitch)
       (setq previous-size (window-text-pixel-size))
-      (hatty--draw-svg-hat (hatty--make-hat (point-min)))
+      (hatty--draw-svg-hat
+       (hatty--make-hat (point-min)
+                        (cons (point-min) (point-max))
+                        '(default . default)))
       (setq current-size (window-text-pixel-size))
       (should (equal previous-size current-size)))))
 
@@ -76,8 +82,10 @@
         (insert "i\n")
         (let ((previous-height (cdr (window-text-pixel-size))))
           (put-text-property (point-min) (point-max) 'line-height line-height)
-          (hatty--draw-svg-hat (hatty--make-hat (point-min)
-                                                (cons (point-min) (1+ (point-min)))))
+          (hatty--draw-svg-hat
+           (hatty--make-hat (point-min)
+                            (cons (point-min) (1+ (point-min)))
+                            '(default . default)))
           (should (= (* line-height previous-height) (cdr (window-text-pixel-size)))))))))
 
 (defface hatty--test-face-large
@@ -98,8 +106,10 @@ default height."
         (let ((previous-height (cdr (window-text-pixel-size))))
           (put-text-property (point-min) (point-max) 'line-height line-height)
           (put-text-property (point-min) (point-max) 'face 'hatty--test-face-large)
-          (hatty--draw-svg-hat (hatty--make-hat (point-min)
-                                                (cons (point-min) (1+ (point-min)))))
+          (hatty--draw-svg-hat
+           (hatty--make-hat (point-min)
+                            (cons (point-min) (1+ (point-min)))
+                            '(default . default)))
           (should (= (* line-height previous-height) (cdr (window-text-pixel-size)))))))))
 
 (ert-deftest hatty--invisible-text ()
@@ -213,8 +223,14 @@ This is crucial to not reveal characters of password prompts."
     (add-display-text-property (+ (point-min) 2) (+ (point-min) 3) 'raise 0.23)
     (add-display-text-property (+ (point-min) 4) (+ (point-min) 5) 'raise -0.3)
     (let ((previous-size (window-text-pixel-size)))
-      (hatty--draw-svg-hat (hatty--make-hat (+ (point-min) 2) nil))
-      (hatty--draw-svg-hat (hatty--make-hat (+ (point-min) 4) nil))
+      (hatty--draw-svg-hat
+       (hatty--make-hat (+ (point-min) 2)
+                        (cons (+ (point-min) 2) (+ (point-min) 3))
+                        '(default . default)))
+      (hatty--draw-svg-hat
+       (hatty--make-hat (+ (point-min) 4)
+                        (cons (+ (point-min) 4) (+ (point-min) 5))
+                        '(default . default)))
       (should (equal previous-size (window-text-pixel-size))))))
 
 (ert-deftest hatty--raise-display-overlay-property ()
