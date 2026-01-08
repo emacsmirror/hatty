@@ -1,4 +1,4 @@
-;;; hatty.el --- Query positions through hats        -*- lexical-binding: t; -*-
+;;; test.el --- Tests for hatty                      -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2024, 2025, 2026 Erik Präntare
 
@@ -291,4 +291,4 @@ this quality is retained when rendering hats."
       (hatty-reallocate)
       (should (equal before (window-text-pixel-size))))))
 
-;;; tests.el ends here
+;;; test.el ends here
