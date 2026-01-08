@@ -1,6 +1,6 @@
 ;;; hatty.el --- Query positions through hats        -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2024, 2025 Erik Präntare
+;; Copyright (C) 2024, 2025, 2026 Erik Präntare
 
 ;; This file is part of hatty.el.
 
@@ -32,10 +32,10 @@
 ;; supported.
 (ert-deftest hatty--text-scaling ()
   "Size of the character is retained at different scales."
-  (dolist (height '(120 240 60          ;Nice values
-                        173 37          ;Not nice values
-                        1 1337          ;Extremes
-                        ))
+  (dolist (height '( 120 240 60         ;Nice values
+                     173 37             ;Not nice values
+                     1 1337             ;Extremes
+                     ))
     (let ((previous-height (face-attribute 'default :height))
           (previous-size)
           (current-size))
@@ -66,17 +66,19 @@
 
 (ert-deftest hatty--extra-line-height ()
   "If extra line height is present, use it."
-  (let ((previous-size)
-        (current-size))
-    (with-temp-buffer
-      (switch-to-buffer (current-buffer))
-      (insert "i\n")
-      (let ((previous-height (cdr (window-text-pixel-size))))
-        ;; TODO: Less nice test numbers
-        (put-text-property (point-min) (point-max) 'line-height 2.0)
-        (hatty--draw-svg-hat (hatty--make-hat (point-min)
-                                              (cons (point-min) (1+ (point-min)))))
-        (should (= (* 2.0 previous-height) (cdr (window-text-pixel-size))))))))
+  (dolist (line-height '( 2.0 1.5       ;Nice values
+                          1.73 2.37     ;Not nice values
+                          ))
+    (let ((previous-size)
+          (current-size))
+      (with-temp-buffer
+        (switch-to-buffer (current-buffer))
+        (insert "i\n")
+        (let ((previous-height (cdr (window-text-pixel-size))))
+          (put-text-property (point-min) (point-max) 'line-height line-height)
+          (hatty--draw-svg-hat (hatty--make-hat (point-min)
+                                                (cons (point-min) (1+ (point-min)))))
+          (should (= (* line-height previous-height) (cdr (window-text-pixel-size)))))))))
 
 (defface hatty--test-face-large
   '((t . (:height 2.0 :inherit default)))
@@ -85,18 +87,20 @@
 (ert-deftest hatty--line-height-large-face ()
   "Do not use extra line height if character is larger than
 default height."
-  (let ((previous-size)
-        (current-size))
-    (with-temp-buffer
-      (switch-to-buffer (current-buffer))
-      (insert "i\n")
-      (let ((previous-height (cdr (window-text-pixel-size))))
-        ;; TODO: Less nice test numbers
-        (put-text-property (point-min) (point-max) 'line-height 2.0)
-        (put-text-property (point-min) (point-max) 'face 'hatty--test-face-large)
-        (hatty--draw-svg-hat (hatty--make-hat (point-min)
-                                              (cons (point-min) (1+ (point-min)))))
-        (should (= (* 2.0 previous-height) (cdr (window-text-pixel-size))))))))
+  (dolist (line-height '( 2.0 1.5       ;Nice values
+                          1.73 2.37     ;Not nice values
+                          ))
+    (let ((previous-size)
+          (current-size))
+      (with-temp-buffer
+        (switch-to-buffer (current-buffer))
+        (insert "i\n")
+        (let ((previous-height (cdr (window-text-pixel-size))))
+          (put-text-property (point-min) (point-max) 'line-height line-height)
+          (put-text-property (point-min) (point-max) 'face 'hatty--test-face-large)
+          (hatty--draw-svg-hat (hatty--make-hat (point-min)
+                                                (cons (point-min) (1+ (point-min)))))
+          (should (= (* line-height previous-height) (cdr (window-text-pixel-size)))))))))
 
 (ert-deftest hatty--invisible-text ()
   "Invisible text should not contribute tokens."
