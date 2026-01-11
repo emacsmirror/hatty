@@ -1,6 +1,6 @@
 ;;; hatty.el --- Query positions through hats        -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2024, 2025 Erik Präntare
+;; Copyright (C) 2024, 2025, 2026 Erik Präntare
 
 ;; Author: Erik Präntare
 ;; Keywords: convenience
@@ -658,11 +658,13 @@ returns nil."
 
            (svg-height (max default-line-height char-height))
            (svg-width char-width)
+           ;; TODO: We should probably calculate the bounding box of
+           ;; the empty space above the typical char, and fit the
+           ;; curve inside that, instead of using this equation
+           ;; derived from trial-and-error.
            (scale (* hatty-scale-factor
                      ;; Magic number 200.0 was picked to look good.
-                     (/ (face-attribute 'default :height) 200.0)
-                     ;; Magic number 11.0 was font width during above pick.
-                     (/ font-width 11.0)))
+                     (/ (face-attribute 'default :height) 200.0)))
 
            ;; Convert from emacs color to 6 letter svg hexcode.
            (svg-hat-color
@@ -757,7 +759,7 @@ SVGs in the future."
   "Add space between lines for hats to render in the current buffer."
   (remove-overlays nil nil 'hatty--modified-line-height t)
   (let ((modify-line-height (make-overlay (point-min) (point-max) nil nil t)))
-    (overlay-put modify-line-height 'line-height  1.2)
+    (overlay-put modify-line-height 'line-height 1.2)
     (overlay-put modify-line-height 'evaporate nil)
     (overlay-put modify-line-height 'hatty t)
     (overlay-put modify-line-height 'hatty--modified-line-height t)))
