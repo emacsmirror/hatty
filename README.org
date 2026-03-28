@@ -125,7 +125,7 @@ markers.
 
 The available colors and shapes are specified by the variables
 ~hatty-colors~ and ~hatty-shapes~.  The keys in these alists are the
-symbols used to invoke ~hatty-locate~.  The special identifier
+symbols used to invoke ~hatty-locate-token~.  The special identifier
 ~default~ denotes the color or shape to use whenever the argument is
 nil or absent.
 
