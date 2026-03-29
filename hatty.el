@@ -290,7 +290,7 @@ function returns nil."
   (when-let ((hat (hatty--locate-hat character color shape)))
     (hatty--hat-token-region hat)))
 
-(define-obsolete-function-alias #'hatty-locate-token-region
+(define-obsolete-function-alias 'hatty-locate-token-region
   #'hatty-locate-token "1.3.0")
 
 (defun hatty--buffer-hats (&optional buffer-or-name)
@@ -639,7 +639,6 @@ returns nil."
            (font-size (elt font-metrics 2))
            (ascent (elt font-metrics 4))
            (descent (elt font-metrics 5))
-           (font-width (elt font-metrics 7))
            (char-width (elt glyph-metrics 4))
            (char-height (+ ascent descent))
            (raise (round
