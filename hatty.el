@@ -4,7 +4,7 @@
 
 ;; Author: Erik Präntare
 ;; Keywords: convenience
-;; Version: 1.3.0
+;; Version: 2.0.0
 ;; Homepage: https://github.com/ErikPrantare/hatty.el
 ;; Package-Requires: ((emacs "29.1"))
 ;; Created: 05 Jul 2024
