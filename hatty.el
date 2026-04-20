@@ -261,21 +261,6 @@ The behavior of this function can be changed by setting
                                hatty--hats))
                            (window-list-1 nil nil 'visible)))))
 
-(defun hatty-locate (character &optional color shape)
-  "Get position of the hat over CHARACTER matching COLOR and SHAPE.
-
-COLOR and SHAPE should be identifiers as they occur in
-‘hatty-colors’ and ‘hatty-shapes’.
-
-If COLOR or SHAPE is nil or unspecified, the default color or
-shape will be used."
-  (hatty--hat-marker
-   (hatty--locate-hat character color shape)))
-
-(make-obsolete #'hatty-locate
-               "this will be removed in a future version."
-               "1.3.0")
-
 (defun hatty-locate-token (character &optional color shape)
   "Get token region of the hat over CHARACTER with COLOR and SHAPE.
 
@@ -289,9 +274,6 @@ If there is no token corresponding to CHARACTER, COLOR and SHAPE, this
 function returns nil."
   (when-let ((hat (hatty--locate-hat character color shape)))
     (hatty--hat-token-region hat)))
-
-(define-obsolete-function-alias 'hatty-locate-token-region
-  #'hatty-locate-token "1.3.0")
 
 (defun hatty--buffer-hats (&optional buffer-or-name)
   "Return all hats in BUFFER-OR-NAME.
