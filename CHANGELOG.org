@@ -1,3 +1,15 @@
+* 2.0.0 [2026-04-20 Mon]
+- New user option ~hatty-scale-factor~.  This option will scale the
+  hat sizes by the given factor.
+- Added ~hatty-forward-token~ to move point forward by tokens.
+  ~(forward-thing 'hatty-token)~ should now work as expected.
+- Truncated lines do not jitter anymore.
+- ~hatty-locate-token~ now returns nil if no token was found.
+- Hat size now takes default font size into account.
+- ~hatty-locate-token-region~ has been removed.  Use
+  ~hatty-locate-token~ instead.
+- ~hatty-locate~ has been removed.
+
 * 1.3.0 [2025-04-14 Mon]
 - Hats are now allocated uniquely across windows.  Location functions
   now search in all visible windows.
